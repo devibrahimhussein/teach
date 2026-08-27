@@ -90,15 +90,18 @@
   function samplesTable(samples) {
     if (!samples || !samples.length) return '';
     var rows = samples.map(function (s, i) {
+      /* the case number is a row header, which is what gives the two data cells
+         in the row a header to be announced under */
       return '<tr>' +
-        '<td class="n">' + (i + 1) + '</td>' +
+        '<th scope="row" class="n">' + (i + 1) + '</th>' +
         '<td>' + cell(s.input) + '</td>' +
         '<td>' + cell(s.output) + '</td>' +
         '</tr>';
     }).join('');
     return '<div class="field"><span class="eyebrow">Sample cases</span>' +
       '<div class="samples-wrap"><table class="samples">' +
-      '<thead><tr><th></th><th>Input</th><th>Output</th></tr></thead>' +
+      '<thead><tr><th scope="col"><span class="sr-only">Case</span></th>' +
+      '<th scope="col">Input</th><th scope="col">Output</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></div>';
   }
 
@@ -132,7 +135,7 @@
       '<div class="card-head">' +
         '<div class="card-title">' +
           '<span class="eyebrow">Exercise ' + (index + 1) + '</span>' +
-          '<h4>' + esc(ex.title) + '</h4>' +
+          '<h3>' + esc(ex.title) + '</h3>' +
         '</div>' +
         '<div class="card-tools">' +
           '<span class="badge ' + diff + '">' + esc(ex.difficulty || 'Easy') + '</span>' +
@@ -161,7 +164,7 @@
     return '<section class="objective" id="obj-' + (oi + 1) + '">' +
       '<div class="objective-head">' +
         '<span class="rule-label">Objective ' + (oi + 1) + '</span>' +
-        '<h3>' + fmt(obj.title) + '</h3>' +
+        '<h2>' + fmt(obj.title) + '</h2>' +
       '</div>' +
       (obj.summary ? '<p class="objective-summary">' + fmt(obj.summary) + '</p>' : '') +
       (obj.points && obj.points.length
@@ -196,10 +199,22 @@
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
   /* Shared by the hero and every service block, so they stay visually identical. */
+  /* AVIF and WebP ahead of the PNG, two widths each. The figure is capped at 480
+     CSS px and hidden below 620px, so `sizes` never asks for the 900w file on a
+     phone. `fetchpriority` marks it as the desktop LCP candidate; index.html
+     preloads the same AVIF candidates so the fetch starts before this HTML exists. */
+  var PORTRAIT_SIZES = '(max-width: 620px) 240px, (max-width: 999px) min(88vw, 480px), 480px';
+
   function portraitFigure() {
     return '<figure class="hero-portrait">' +
-      '<img src="img/ibrahim-hussein.png" alt="Mr. Ibrahim Hussein" ' +
-           'width="900" height="1125" decoding="async">' +
+      '<picture>' +
+        '<source type="image/avif" sizes="' + PORTRAIT_SIZES + '" ' +
+          'srcset="img/ibrahim-hussein-480.avif 480w, img/ibrahim-hussein.avif 900w">' +
+        '<source type="image/webp" sizes="' + PORTRAIT_SIZES + '" ' +
+          'srcset="img/ibrahim-hussein-480.webp 480w, img/ibrahim-hussein.webp 900w">' +
+        '<img src="img/ibrahim-hussein.png" alt="Mr. Ibrahim Hussein" ' +
+             'width="900" height="1125" decoding="async" fetchpriority="high">' +
+      '</picture>' +
       '<figcaption>' +
         '<strong>' + esc(window.CONTACT.name) + '</strong>' +
         '<span>' + esc(window.CONTACT.place) + '</span>' +
@@ -360,10 +375,11 @@
     if (items.length === 1) return '<section class="hero">' + items[0].inner + '</section>';
 
     var slides = items.map(function (it, i) {
-      return '<article class="hero hero-slide" role="group" aria-roledescription="slide" ' +
+      /* a plain <div>: `group` is not an allowed role on <article> */
+      return '<div class="hero hero-slide" role="group" aria-roledescription="slide" ' +
         'aria-label="' + esc(it.label) + ', slide ' + (i + 1) + ' of ' + items.length + '"' +
         /* inert="" rather than bare inert, so it matches what go() writes later */
-        (i === 0 ? '' : ' aria-hidden="true" inert=""') + '>' + it.inner + '</article>';
+        (i === 0 ? '' : ' aria-hidden="true" inert=""') + '>' + it.inner + '</div>';
     }).join('');
 
     /* the fill span doubles as the autoplay progress bar and its clock */
@@ -551,9 +567,7 @@
 
     var rows = course.modules.map(function (m) {
       var pending = m.status === 'pending';
-      var count = (m.objectives || []).reduce(function (n, o) {
-        return n + (o.exercises || []).length;
-      }, 0);
+      var count = Curriculum.moduleExercises(m);
       var inner =
         '<span class="module-num">' + (m.number < 10 ? '0' : '') + m.number + '</span>' +
         '<span class="module-body">' +
@@ -610,7 +624,7 @@
         '<div class="pending-note"><strong>Syllabus not defined yet.</strong> ' +
         esc(mod.note || 'The detailed objectives for this module are agreed with the instructor before exercise content is generated.') +
         (mod.plannedTopics && mod.plannedTopics.length
-          ? '<ul style="margin:10px 0 0;padding-left:20px">' + mod.plannedTopics.map(function (t) {
+          ? '<ul class="planned-topics">' + mod.plannedTopics.map(function (t) {
               return '<li>' + esc(t) + '</li>';
             }).join('') + '</ul>'
           : '') +
@@ -723,28 +737,115 @@
 
   /* ---------- routing ---------- */
 
-  function render() {
-    var hash = location.hash.replace(/^#/, '');
-    var app = document.getElementById('app');
-    var lang = currentLang();
-    var m;
+  var SITE = 'Mr Ibrahim Hussein — Technology & Programming';
+  var HOME_DESCRIPTION =
+    'Private tutoring in programming and OOP, in Beirut or online. C++ and Java ' +
+    'exercises with worked examples, plus a free evaluation test.';
+  var descriptionTag = null;
 
-    if ((m = hash.match(/^\/c\/([\w-]+)\/m\/(\d+)/))) {
-      app.innerHTML = viewModule(m[1], m[2], lang);
-    } else if ((m = hash.match(/^\/([\w-]+)\/?$/)) && soonCourse(m[1])) {
-      app.innerHTML = viewSoon(soonCourse(m[1]));
-    } else if ((m = hash.match(/^\/quiz\/([\w-]+)/))) {
-      app.innerHTML = (window.QuizUI && QuizUI.page(m[1], lang)) || notFound();
-    } else if ((m = hash.match(/^\/c\/([\w-]+)/))) {
-      app.innerHTML = viewCourse(m[1]);
-    } else if (/^\/?$/.test(hash)) {
-      app.innerHTML = viewHome();
-    } else {
-      app.innerHTML = notFound();
-    }
+  /* The router owns the document title and description: with one HTML file behind
+     every route, they would otherwise describe the home page everywhere. */
+  function setMeta(title, description) {
+    document.title = title ? plain(title) + ' — ' + SITE : SITE;
+    if (!descriptionTag) descriptionTag = document.querySelector('meta[name="description"]');
+    if (descriptionTag && description) descriptionTag.setAttribute('content', plain(description));
+  }
+
+  function paint(html) {
+    var app = document.getElementById('app');
+    app.innerHTML = html;
     window.scrollTo(0, 0);
     initSlider();
     initModuleNav();
+    if (window.QuizUI) QuizUI.paintBars(app);
+  }
+
+  /* Shown while a deferred file is in flight. It replaces a view the visitor asked
+     for, so it is announced; the fixed height keeps the footer where it was. */
+  function loadingView(label) {
+    return '<div class="route-loading" role="status">' +
+      '<span class="route-loading-bar"></span>' +
+      '<p>Loading ' + esc(label) + '…</p></div>';
+  }
+
+  function loadFailed(what) {
+    return '<div class="breadcrumb"><a href="#/">Courses</a></div>' +
+      '<h1 class="page-title">Could not load ' + esc(what) + '</h1>' +
+      '<p class="page-lede">The connection dropped before the content arrived. ' +
+      '<button type="button" class="linklike" data-reload>Try again</button>, ' +
+      'or go <a href="#/">back to the course list</a>.</p>';
+  }
+
+  /* Only the newest navigation may paint: a visitor who moves on while a file is in
+     flight must not have the old destination appear underneath them. */
+  var routeToken = 0;
+
+  function routeModule(courseId, number, lang) {
+    var course = Curriculum.getCourse(courseId);
+    var mod = Curriculum.getModule(courseId, number);
+    if (!course || !mod) { setMeta('Page not found'); return paint(notFound()); }
+
+    setMeta('Module ' + mod.number + ' ' + mod.title + ' — ' + course.title, mod.summary);
+    if (!mod.deferred) return paint(viewModule(courseId, number, lang));
+
+    var token = routeToken;
+    paint(loadingView('Module ' + mod.number + ', ' + plain(mod.title)));
+    Curriculum.loadModule(courseId, number, function (loaded) {
+      if (token !== routeToken) return;
+      paint(loaded ? viewModule(courseId, number, lang) : loadFailed('this module'));
+    });
+  }
+
+  function routeQuiz(courseId, lang) {
+    var course = Curriculum.getCourse(courseId);
+    setMeta('Evaluation test' + (course ? ' — ' + course.title : ''),
+      'A multiple-choice evaluation test that scores which objectives you already know.');
+
+    if (window.QuizUI && Quiz.topics(courseId).length) {
+      return paint(QuizUI.page(courseId, lang) || notFound());
+    }
+    if (!Quiz.has(courseId)) { setMeta('Page not found'); return paint(notFound()); }
+
+    var token = routeToken;
+    paint(loadingView('the evaluation test'));
+
+    /* engine and question bank travel together, and only for this route */
+    loadScript('js/quiz.js', function (engineOk) {
+      Quiz.load(courseId, function (bankOk) {
+        if (token !== routeToken) return;
+        paint(engineOk && bankOk && window.QuizUI
+          ? (QuizUI.page(courseId, lang) || notFound())
+          : loadFailed('the evaluation test'));
+      });
+    });
+  }
+
+  function render() {
+    var hash = location.hash.replace(/^#/, '');
+    var lang = currentLang();
+    var soon, course;
+    var m;
+
+    routeToken++;
+
+    if ((m = hash.match(/^\/c\/([\w-]+)\/m\/(\d+)/))) {
+      routeModule(m[1], m[2], lang);
+    } else if ((m = hash.match(/^\/([\w-]+)\/?$/)) && (soon = soonCourse(m[1]))) {
+      setMeta((soon.title + ' ' + (soon.titleAccent || '')).trim(), soon.lede);
+      paint(viewSoon(soon));
+    } else if ((m = hash.match(/^\/quiz\/([\w-]+)/))) {
+      routeQuiz(m[1], lang);
+    } else if ((m = hash.match(/^\/c\/([\w-]+)/))) {
+      course = Curriculum.getCourse(m[1]);
+      setMeta(course && course.title, course && course.description);
+      paint(viewCourse(m[1]));
+    } else if (/^\/?$/.test(hash)) {
+      setMeta(null, HOME_DESCRIPTION);
+      paint(viewHome());
+    } else {
+      setMeta('Page not found');
+      paint(notFound());
+    }
   }
 
   /* ---------- module sidebar ---------- */
@@ -885,6 +986,11 @@
       /* on mobile the sidebar is a disclosure — close it once a choice is made */
       var nav = btn.closest('.module-nav');
       if (nav && !isWide()) nav.open = false;
+      return;
+    }
+
+    if (btn.hasAttribute('data-reload')) {
+      location.reload();
       return;
     }
 

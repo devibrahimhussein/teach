@@ -12,6 +12,27 @@ GitHub Pages.
 open index.html
 ```
 
+## Delivery
+
+Static files, no build step. `_headers` is the Netlify / Cloudflare Pages format and
+carries both the caching policy and the security headers, including a
+`Content-Security-Policy` with no `'unsafe-inline'`: nothing on the site is an inline
+script, an inline event handler or a `style` attribute. The one exception is the
+`application/ld+json` block in `index.html`, which the policy allows by SHA-256 — edit
+that block and the hash has to be recomputed (the command is in `_headers`).
+
+Measured with Lighthouse 12 against a server applying `_headers` with Brotli:
+100 / 100 / 100 / 100 on both the mobile and desktop presets, LCP 1.8 s mobile and 0.4 s
+desktop, CLS 0, TBT 0, and 78 KB of transfer for the home page.
+
+Two things to keep true when editing:
+
+- **Reserve space for anything the router paints.** `#app` carries a `min-height` of one
+  viewport for exactly this reason: before the fix, the footer sliding down as the first
+  view rendered was a 0.57 CLS on its own.
+- **Keep the page free of inline scripts and style attributes**, or the CSP has to grow
+  an exception.
+
 ## What is published
 
 | Course | Modules | Status |
@@ -78,18 +99,39 @@ re-crops (`object-position` is a plain `50% 50%`). The transparency means the ca
 shows through: `--cream-deep` behind the hero, `--navy-soft` behind the footer circle. To
 replace the photo, re-cut a new source and rebuild those three files at the same sizes.
 
+The PNGs are now only the fallback. Each is also published as AVIF and WebP, and the hero
+additionally at 480w — the width the figure actually occupies, since it is capped at 480
+CSS px and hidden below 620px. `<picture>` picks the format, `srcset`/`sizes` picks the
+width, and `index.html` preloads the AVIF pair so the download starts before the router
+has drawn the figure. That took the hero from a 176 KB PNG to a 20 KB AVIF.
+
+Rebuild the derivatives after replacing a PNG:
+
+```sh
+sips --resampleWidth 480 img/ibrahim-hussein.png --out /tmp/h480.png
+for src in img/ibrahim-hussein img/ibrahim-hussein-sm; do
+  cwebp  -q 82 -alpha_q 90 -m 6 "$src.png" -o "$src.webp"
+  avifenc -q 62 -s 4 --jobs all "$src.png" "$src.avif"
+done
+cwebp  -q 82 -alpha_q 90 -m 6 /tmp/h480.png -o img/ibrahim-hussein-480.webp
+avifenc -q 62 -s 4 --jobs all /tmp/h480.png img/ibrahim-hussein-480.avif
+```
+
 ## Layout
 
 ```
-index.html                  page shell; loads every data file, then the app
+index.html                  page shell, metadata, and the script tags
+_headers                    security and caching headers (Netlify / Cloudflare Pages)
+robots.txt, sitemap.xml     crawler directives
 css/styles.css              all styling (light only)
-img/ibrahim-hussein.png     hero portrait, background removed (900×1125)
-img/ibrahim-hussein-sm.png  footer avatar, background removed (240×240)
-img/ibrahim-hussein*.jpg    original photos, background intact
+img/ibrahim-hussein.*       hero portrait — avif, webp, png (900×1125) and a 480w pair
+img/ibrahim-hussein-sm.*    footer avatar — avif, webp, png (240×240)
+img/ibrahim-hussein*.jpg    original photos, background intact, not served
+js/boot.js                  preloader gate and the on-demand script loader
 js/app.js                   hash router and renderer
-js/quiz.js                  evaluation test: engine, views and scoring
-data/courses.js             registry, starter-code templates, course definitions
-data/fundamentals/m1.js     Module 1 — Basics
+js/quiz.js                  evaluation test: engine, views and scoring — loaded on demand
+data/courses.js             registry, starter-code templates, courses, module stubs
+data/fundamentals/m1.js     Module 1 — Basics — loaded on demand
 data/fundamentals/m2.js     Module 2 — Conditions
 data/fundamentals/m3.js     Module 3 — Loops
 data/fundamentals/m4.js     Module 4 — Arrays
@@ -98,10 +140,30 @@ data/oop.js                 Course 2 placeholders
 data/soon.js                announced courses — Arduino & ESP32, AI — one page each
 data/services.js            course pricing, tutoring offerings (BT3 IT), contact details
 data/quiz/quiz.js           question-bank registry
-data/quiz/fundamentals.js   66 questions, three per objective
+data/quiz/fundamentals.js   66 questions, three per objective — loaded on demand
 ```
 
 Everything is plain `<script>` — no ES modules, because `file://` blocks those.
+
+### What loads when
+
+`index.html` loads `js/boot.js` (not deferred — the preloader gate has to decide before
+the first paint), then everything else with `defer`, so nothing blocks the parser:
+`courses.js`, `oop.js`, `soon.js`, `services.js`, `home.js`, `quiz/quiz.js` and `app.js`.
+That is about 55 KB.
+
+The heavy files are **not** in that list. The five fundamentals modules (~190 KB) and the
+question bank (~36 KB) are declared as stubs — title, summary, counts — and fetched only
+when their page is opened, by `window.loadScript` in `boot.js` injecting a `<script>`
+element. A `<script>` element rather than `fetch`, because the site still has to run from
+`file://`, where `fetch` and XHR are blocked.
+
+Consequences when editing:
+
+- A new or renamed module file needs its stub in `data/courses.js` (`Curriculum.declareModules`),
+  and its `exercises` count kept in step. A new question bank needs `Quiz.declare`.
+- The `?v=` cache-busting token is now written **only** in `index.html`. `boot.js` reads it
+  off its own `<script src>` and reuses it for everything it fetches later.
 
 ## Adding a service
 
@@ -140,7 +202,11 @@ is either Programming Fundamentals or OOP.
 
 ## Adding a module
 
-Write a new file next to `m1.js` and add one `<script>` tag for it in `index.html`.
+Write a new file next to `m1.js`, then add a stub for it to the `Curriculum.declareModules`
+call at the bottom of `data/courses.js` — number, title, summary, exercise count and the
+path. That stub is what the course list shows; the file itself is fetched when the module
+page is opened. No `<script>` tag in `index.html`.
+
 A module looks like this:
 
 ```js

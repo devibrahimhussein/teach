@@ -1,0 +1,48 @@
+# Response headers for Netlify and Cloudflare Pages (same file format on both).
+#
+# The Content-Security-Policy carries one SHA-256: the application/ld+json block in
+# index.html. CSP applies to every <script> element, executable or not, so editing
+# that block means recomputing the hash:
+#
+#   python3 - <<'PY'
+#   import re, hashlib, base64
+#   s = open('index.html').read()
+#   c = re.search(r'<script type="application/ld\+json">(.*?)</script>', s, re.S).group(1)
+#   print('sha256-' + base64.b64encode(hashlib.sha256(c.encode()).digest()).decode())
+#   PY
+#
+# Nothing else on the site is inline: no inline event handlers, no style attributes,
+# no external origins. Keep it that way and this policy needs no other exceptions.
+
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self' 'sha256-Ou73sA27rHfZ4WdY0TrPakdVjxW1vQ7fNiywvm7e+N4='; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), gamepad=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), local-fonts=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+  X-Permitted-Cross-Domain-Policies: none
+
+# The single HTML file is the router's entry point for every route. It must be
+# revalidated, or a stale copy keeps pointing at a cache-busting token that has moved.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Code and content are requested with ?v=<token> (see index.html), so a published
+# change arrives under a new URL and these can be cached indefinitely.
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+/data/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Images carry no token. A month is long enough to be free on repeat visits and short
+# enough that replacing the portrait is visible without renaming the file.
+/img/*
+  Cache-Control: public, max-age=2592000

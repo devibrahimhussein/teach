@@ -111,10 +111,21 @@ window.QuizUI = (function () {
     return '<pre class="code quiz-code"><code>' + UI.esc(code) + '</code></pre>';
   }
 
+  /* The width is carried on data-pct and applied by paintBars() after insertion,
+     rather than as a style attribute, so the page needs no 'unsafe-inline' in its
+     style-src. */
   function progressBar(done, total) {
     var pct = total ? Math.round((done / total) * 100) : 0;
     return '<div class="quiz-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" ' +
-      'aria-valuenow="' + pct + '"><span style="width:' + pct + '%"></span></div>';
+      'aria-valuenow="' + pct + '" data-pct="' + pct + '"><span></span></div>';
+  }
+
+  function paintBars(root) {
+    var bars = root.querySelectorAll('.quiz-bar[data-pct]');
+    for (var i = 0; i < bars.length; i++) {
+      var fill = bars[i].firstChild;
+      if (fill) fill.style.width = bars[i].getAttribute('data-pct') + '%';
+    }
   }
 
   function moduleTitle(courseId, number) {
@@ -265,9 +276,9 @@ window.QuizUI = (function () {
       }).join('');
 
       return '<section class="review-topic">' +
-        '<h4>' + UI.fmt(row.topic.objective) +
+        '<h2>' + UI.fmt(row.topic.objective) +
           '<span class="review-topic-score ' + (row.known ? 'is-known' : 'is-gap') + '">' +
-            row.correct + '/' + row.total + '</span></h4>' +
+            row.correct + '/' + row.total + '</span></h2>' +
         qs +
       '</section>';
     }).join('');
@@ -373,6 +384,7 @@ window.QuizUI = (function () {
     var root = document.getElementById('quiz-root');
     if (!root || !state) return;
     root.innerHTML = body(state.course, UI.currentLang());
+    paintBars(root);
     if (scroll) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -470,5 +482,6 @@ window.QuizUI = (function () {
     }
   });
 
-  return { page: page, click: click, refresh: refresh, isActive: isActive };
+  return { page: page, click: click, refresh: refresh, isActive: isActive,
+           paintBars: paintBars };
 })();

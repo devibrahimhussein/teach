@@ -6,7 +6,8 @@
 
    To publish a module: replace its entry here with a full module file in the style of
    data/fundamentals/m1.js — objectives, each with summary, points, example and three
-   exercises — and add a <script> tag for it in index.html. */
+   exercises — and declare it as a deferred stub in data/courses.js, the way the
+   fundamentals modules are. */
 
 [
   {
