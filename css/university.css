@@ -166,7 +166,10 @@
 .uni h3,.uni h4{margin-top:0}
 .uni .links a{color:var(--link);font-weight:700}
 
-.uni.u-max{position:fixed;top:0;right:0;bottom:0;left:0;z-index:100000;background:var(--cream);overflow:auto;overscroll-behavior:contain;padding:18px clamp(14px,4vw,64px) 40px}
+.uni.u-max{position:fixed;top:0;right:0;bottom:0;left:0;z-index:100000;background:var(--cream);overflow:hidden;display:flex;flex-direction:column;padding:14px clamp(14px,4vw,64px) 14px}
+.uni.u-max .u-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:8px}
+.uni.u-max .u-toolbar{flex:0 0 auto;margin-bottom:8px}
+html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
 .uni.u-max>*{max-width:1180px;margin-left:auto;margin-right:auto}
 .uni.u-max .u-card{padding:clamp(20px,3vw,40px)}
 .uni.u-max h2.q{font-size:clamp(24px,3.4vw,34px)}

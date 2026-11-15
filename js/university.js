@@ -268,7 +268,7 @@ function renderStart(box) {
     'Timers: easy ' + TIME.easy + ' s, medium ' + TIME.medium + ' s, hard ' + TIME.hard + ' s. The timer starts when you press Start. You can turn timers off above.',
     'Use **Maximize** to fill the whole screen with the exercise.'].map(function (t) { return '<li>' + fmt(t) + '</li>'; }).join('') }));
   card.appendChild(h('div', { class: 'note' }, h('b', { text: 'Language notes: ' + LNAME[lang] }), h('ul', { html: (session.notes[lang] || []).map(function (n) { return '<li>' + fmt(n) + '</li>'; }).join('') })));
-  card.appendChild(h('div', { class: 'actions' }, h('button', { class: 'u-btn gold big-btn', type: 'button', text: 'Start practice →', onclick: function () { st().started = true; render(true); } })));
+  card.appendChild(h('div', { class: 'actions' }, h('button', { class: 'u-btn gold big-btn', type: 'button', text: 'Start practice →', onclick: function () { st().started = true; max = true; render(true); } })));
   box.appendChild(card);
 }
 
@@ -405,6 +405,7 @@ function render(scroll) {
   stopTimer();
   ST.lang = lang; ST.mode = mode; ST.timersOn = timersOn; ST.max = max;
   root.classList.toggle('u-max', max);
+  document.documentElement.classList.toggle('u-lock', max);
   root.innerHTML = '';
   var lg = h('div', { class: 'lang', role: 'group', 'aria-label': 'Language' });
   LANGS.forEach(function (l) { lg.appendChild(h('button', { type: 'button', class: lang === l[0] ? 'on' : '', text: l[1], onclick: function () { if (lang === l[0]) return; lang = l[0]; try { localStorage.setItem(LANG_KEY, lang); } catch (e) {} render(); } })); });
@@ -414,14 +415,15 @@ function render(scroll) {
       h('button', { class: 'tab' + (mode === 'class' ? ' on' : ''), type: 'button', text: 'In class (' + EX.length + ')', onclick: function () { mode = 'class'; render(true); } }),
       h('button', { class: 'tab' + (mode === 'practice' ? ' on' : ''), type: 'button', text: 'Self-practice (' + PR.length + ')', onclick: function () { mode = 'practice'; render(true); } })),
     h('div', { class: 'u-tools' }, mode === 'class' ? tg : null, h('button', { class: 'u-btn ghost sm', type: 'button', text: max ? '✕ Exit full screen' : '⤢ Maximize', 'aria-pressed': String(max), onclick: function () { max = !max; render(); if (!max) root.scrollIntoView(); } }), h('span', { class: 'u-lbl', text: 'Language' }), lg)));
-  var box = h('div'); root.appendChild(box);
+  var box = h('div', { class: 'u-body' }); root.appendChild(box);
   if (mode === 'class') {
     renderClass(box);
   } else renderPractice(box);
-  if (scroll && root.scrollIntoView) root.scrollIntoView();
+  if (max) box.scrollTop = 0; else if (scroll && root.scrollIntoView) root.scrollIntoView();
 }
+window.addEventListener('hashchange', function onHash() { if (!document.body.contains(root)) { document.documentElement.classList.remove('u-lock'); window.removeEventListener('hashchange', onHash); } });
 document.addEventListener('keydown', function onKey(e) {
-  if (!document.body.contains(root)) { document.removeEventListener('keydown', onKey); return; }
+  if (!document.body.contains(root)) { document.removeEventListener('keydown', onKey); document.documentElement.classList.remove('u-lock'); return; }
   if (e.key === 'Escape' && max) { max = false; render(); root.scrollIntoView(); }
 });
 render();
