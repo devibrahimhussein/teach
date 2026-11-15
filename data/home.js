@@ -71,7 +71,7 @@ window.HomeContent = {
       {
         q: 'Do I have to use this site to take sessions?',
         a: 'No. The site is free and open to anyone — the exercises, the objectives ' +
-           'and the evaluation test stay available whether or not you book.'
+           'and the level test stay available whether or not you book.'
       },
       {
         q: 'What do I need before starting the OOP course?',
