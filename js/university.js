@@ -57,8 +57,10 @@ function shuf(arr, seed, notSame) {
 function same(a, b) { return a.length === b.length && a.every(function (v, i) { return v === b[i]; }); }
 function lines(x) { return Array.isArray(x) ? x.join('\n') : x; }
 
-var KW = { c: 'int return void char double float if else include main printf puts stdio h', cpp: 'int return using namespace std string void char double float if else include main cout cin endl iostream',
-  java: 'public class static void main String int return System out println print', py: 'print def if else for while in return import end' };
+var KW = { c: 'int return void char double float long const bool true false if else include main printf scanf puts fgets stdio stdbool h',
+  cpp: 'int return using namespace std string void char double float long const bool true false if else include main cout cin endl getline iostream',
+  java: 'public class static void main String int double float long char boolean final new Scanner true false return System out in println print printf',
+  py: 'print input int float str bool True False def if else for while in return import end' };
 function hl(code, L, numbered) {
   var kws = {}; KW[L].split(' ').forEach(function (k) { kws[k] = 1; });
   var re = /(\/\/[^\n]*|#[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|(\b\d+(?:\.\d+)?\b)|(\b[A-Za-z_][A-Za-z0-9_]*\b)/g;
@@ -191,7 +193,7 @@ function bTrace(ex, chg) {
     sels.push({ sel: sel, opts: opts });
     tb.appendChild(h('tr', null, h('td', { text: String(k + 1) }), h('td', { class: 'cd', html: hl(r.code[L], L) }), h('td', null, sel)));
   });
-  var node = h('table', { class: 't' }, h('thead', null, h('tr', null, h('th', { text: '#' }), h('th', { text: 'STATEMENT' }), h('th', { text: 'SCREEN AFTER THIS STATEMENT' }))), tb);
+  var node = h('table', { class: 't' }, h('thead', null, h('tr', null, h('th', { text: '#' }), h('th', { text: 'STATEMENT' }), h('th', { text: ex.colHead || 'SCREEN AFTER THIS STATEMENT' }))), tb);
   return { node: node, ready: function () { return sels.every(function (x) { return x.sel.value !== '-1'; }); },
     correct: function () { return sels.every(function (x) { return x.opts[+x.sel.value].ok; }); } };
 }
