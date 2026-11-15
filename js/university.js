@@ -391,7 +391,7 @@ function renderPractice(box) {
       card.appendChild(h('h4', { text: p.title }));
       card.appendChild(h('p', { class: 'prompt', html: fmt(p.prompt) }));
       if (p.code) card.appendChild(codeBlock(p.code[lang]));
-      card.appendChild(h('div', { class: 'actions' }, btn, h('label', { class: 'u-step' }, cb, ' Done')));
+      card.appendChild(h('div', { class: 'actions' }, btn, h('label', { class: 'donebox' }, cb, h('span', { class: 'dtxt', text: 'Mark as done' }))));
       card.appendChild(ans); g.appendChild(card);
     });
     box.appendChild(g);

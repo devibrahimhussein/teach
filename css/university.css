@@ -196,9 +196,17 @@ html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
 
 .uni .chip.blk{white-space:pre;text-align:left}
 
-.uni .checks input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;width:24px;height:24px;margin:1px 0 0;border:2px solid var(--navy);border-radius:7px;background:#fff;cursor:pointer;position:relative;transition:background .15s,border-color .15s}
-.uni .checks input[type=checkbox]:hover{border-color:var(--gold-deep)}
-.uni .checks input[type=checkbox]:focus-visible{outline:3px solid var(--gold-soft);outline-offset:2px}
-.uni .checks input[type=checkbox]:checked{background:var(--navy);border-color:var(--navy)}
-.uni .checks input[type=checkbox]:checked::after{content:"";position:absolute;left:7px;top:2px;width:6px;height:12px;border:solid var(--gold-soft);border-width:0 3px 3px 0;transform:rotate(45deg)}
+.uni input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;width:24px;height:24px;margin:1px 0 0;border:2px solid var(--navy);border-radius:7px;background:#fff;cursor:pointer;position:relative;transition:background .15s,border-color .15s}
+.uni input[type=checkbox]:hover{border-color:var(--gold-deep)}
+.uni input[type=checkbox]:focus-visible{outline:3px solid var(--gold-soft);outline-offset:2px}
+.uni input[type=checkbox]:checked{background:var(--navy);border-color:var(--navy)}
+.uni input[type=checkbox]:checked::after{content:"";position:absolute;left:7px;top:2px;width:6px;height:12px;border:solid var(--gold-soft);border-width:0 3px 3px 0;transform:rotate(45deg)}
 .uni .checks label:has(input:checked){background:var(--gold-wash);border-color:var(--gold)}
+
+.uni .donebox{display:inline-flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface-2);border:2px solid var(--border-firm);border-radius:999px;padding:6px 16px 6px 8px;font-weight:700;font-size:14px;color:var(--navy);transition:background .15s,border-color .15s}
+.uni .donebox:hover{border-color:var(--navy)}
+.uni .donebox input[type=checkbox]{margin:0}
+.uni .donebox:has(input:checked){background:var(--gold-wash);border-color:var(--gold)}
+.uni .donebox:has(input:checked) .dtxt::before{content:"Done \2713  \00b7  "}
+.uni .donebox:has(input:checked) .dtxt{font-size:0}
+.uni .donebox:has(input:checked) .dtxt::before{font-size:14px;content:"Done \2713"}
