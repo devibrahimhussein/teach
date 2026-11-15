@@ -322,11 +322,12 @@ function renderClass(box) {
     if (e.st === 'full') msg = h('div', { class: 'fb ok', html: '<b class="h">Correct! +' + e.pts + ' points</b>' + fmt(ex.explain[lang]) });
     else if (e.st === 'half') msg = h('div', { class: 'fb ok', html: '<b class="h">Correct on the second try. +' + e.pts + ' points</b>' + fmt(ex.explain[lang]) });
     else if (e.st === 'done') msg = h('div', { class: 'fb ok', html: '<b class="h">Mini project done. Well done!</b>' + fmt(ex.explain[lang]) });
-    else if (e.st === 'wrong1') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct. −' + (e.lastPen || 0) + ' points</b>Move on. You can come back later for half points.' });
-    else if (e.st === 'timeout') msg = h('div', { class: 'fb no', html: '<b class="h">Time is up.</b>Move on. You can come back later for half points.' });
+    else if (e.st === 'wrong1') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct. −' + (e.lastPen || 0) + ' points</b>Press <b>Try again</b> for half points, or move on.' });
+    else if (e.st === 'timeout') msg = h('div', { class: 'fb no', html: '<b class="h">Time is up.</b>Press <b>Try again</b> for half points, or move on.' });
     else if (e.st === 'wrong2') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct this time. −' + (e.lastPen || 0) + ' points</b>' + fmt(ex.explain[lang]) });
     else msg = h('div', { class: 'fb info', html: '<b class="h">Skipped.</b>You can come back later for half points.' });
     fb.appendChild(msg);
+    if (['wrong1', 'timeout', 'wrong2', 'skipped'].indexOf(e.st) >= 0) actions.appendChild(h('button', { class: 'u-btn gold', type: 'button', text: 'Try again (' + Math.floor(PTS[ex.diff] / 2) + ' pts)', onclick: function () { e.left = true; e.retry = true; render(); } }));
     if (['full', 'half', 'wrong2'].indexOf(e.st) >= 0 || (e.st === 'done' && false)) card.appendChild(solution(ex));
   }
   card.appendChild(fb);
