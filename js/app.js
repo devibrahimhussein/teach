@@ -4,6 +4,8 @@
             #/c/<courseId>            module list
             #/c/<courseId>/m/<n>      module page (objectives + exercises)
             #/<id>                    an announced course from data/soon.js
+            #/university              university course: session list
+            #/university/s/<n>        one session (slides + exercises), js/university.js
    ========================================================================== */
 
 (function () {
@@ -820,6 +822,27 @@
     });
   }
 
+  /* University programming course. The engine, its stylesheet and the session data
+     travel together and only for this route, the way the evaluation test does. */
+  function routeUniversity(number) {
+    var token = routeToken;
+    setMeta('University programming', 'A hands-on introduction to programming for university students, in C, C++, Java or Python.');
+    paint(loadingView('the university course'));
+    loadScript('js/university.js', function (engineOk) {
+      if (token !== routeToken) return;
+      if (!engineOk || !window.UniUI) return paint(loadFailed('the university course'));
+      UniUI.load(number, function (ok) {
+        if (token !== routeToken) return;
+        if (!ok) return paint(loadFailed('the university course'));
+        var page = number ? UniUI.sessionPage(number) : UniUI.listPage();
+        if (!page) { setMeta('Page not found'); return paint(notFound()); }
+        setMeta(page.title, page.description);
+        paint(page.html);
+        if (page.mount) page.mount();
+      });
+    });
+  }
+
   function render() {
     var hash = location.hash.replace(/^#/, '');
     var lang = currentLang();
@@ -828,7 +851,9 @@
 
     routeToken++;
 
-    if ((m = hash.match(/^\/c\/([\w-]+)\/m\/(\d+)/))) {
+    if ((m = hash.match(/^\/university(?:\/s\/(\d+))?\/?$/))) {
+      routeUniversity(m[1] ? Number(m[1]) : 0);
+    } else if ((m = hash.match(/^\/c\/([\w-]+)\/m\/(\d+)/))) {
       routeModule(m[1], m[2], lang);
     } else if ((m = hash.match(/^\/([\w-]+)\/?$/)) && (soon = soonCourse(m[1]))) {
       setMeta((soon.title + ' ' + (soon.titleAccent || '')).trim(), soon.lede);

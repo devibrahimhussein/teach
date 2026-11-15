@@ -46,6 +46,25 @@ for the detailed syllabus to be agreed with the instructor before exercise conte
 generated, so those modules carry topic outlines rather than invented objectives.
 Fundamentals 6–10 are not published at all until their syllabus is agreed.
 
+## University programming (`#/university`)
+
+A second, separate course for university students: one language of the student's choice
+(C, C++, Java or Python), one session at a time. Each session has a slides PDF
+(`university/slides/`), about 20–25 in-class exercises and 10–15 self-practice exercises.
+
+| File | What it is |
+| --- | --- |
+| `js/university.js` | the exercise engine; loaded only on `#/university...` routes |
+| `css/university.css` | every rule scoped under `.uni`, so it cannot affect the rest of the site |
+| `data/university/index.js` | the published sessions (a session is listed only when its exercises exist) |
+| `data/university/sNN.js` | one session: exercises, self-practice, language notes, links |
+| `university/slides/` | the slides PDFs |
+
+Adding a session means adding `sNN.js`, one entry in `index.js` and the PDF — no code change.
+All code samples and "predict the output" answers in the data were run in all four languages
+before they were written here. The engine follows the CSP rules above: no inline script, no
+`style` attributes (styles are set through the DOM, which the policy allows).
+
 ## Brand
 
 The palette and typography follow the printed tutoring flyers.

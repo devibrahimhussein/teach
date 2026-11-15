@@ -46,3 +46,8 @@
 # enough that replacing the portrait is visible without renaming the file.
 /img/*
   Cache-Control: public, max-age=2592000
+
+# Course slides are plain PDFs without a cache-busting token: a day is long enough to be
+# free on repeat visits and short enough that a corrected deck shows up quickly.
+/university/*
+  Cache-Control: public, max-age=86400
