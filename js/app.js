@@ -68,7 +68,8 @@
         '<span class="eyebrow">' + esc(title) + '</span>' +
         '<button type="button" class="copy-btn" data-copy="1">Copy</button>' +
       '</div>' +
-      '<pre class="code"><code>' + esc(code) + '</code></pre>';
+      /* focusable so a keyboard user can scroll a long line into view */
+      '<pre class="code" tabindex="0"><code>' + esc(code) + '</code></pre>';
   }
 
   /* Published for js/quiz.js, which renders inside the same page and must look
@@ -101,7 +102,7 @@
         '</tr>';
     }).join('');
     return '<div class="field"><span class="eyebrow">Sample cases</span>' +
-      '<div class="samples-wrap"><table class="samples">' +
+      '<div class="samples-wrap" tabindex="0"><table class="samples">' +
       '<thead><tr><th scope="col"><span class="sr-only">Case</span></th>' +
       '<th scope="col">Input</th><th scope="col">Output</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></div>';
@@ -610,7 +611,7 @@
     var quizCta = (window.Quiz && Quiz.has(course.id))
       ? '<a class="quiz-cta" href="#/quiz/' + esc(course.id) + '">' +
           '<span class="quiz-cta-body">' +
-            '<span class="eyebrow">Evaluation test</span>' +
+            '<span class="eyebrow">Free level test</span>' +
             '<strong>Find out what you already know</strong>' +
             '<span>' + Quiz.countQuestions(course.id) + ' multiple-choice questions across ' +
               Quiz.countTopics(course.id) + ' objectives. The score at the end lists the ' +
@@ -769,7 +770,7 @@
   var SITE = 'Mr Ibrahim Hussein — Technology & Programming';
   var HOME_DESCRIPTION =
     'Private tutoring in programming and OOP, in Beirut or online. C++ and Java ' +
-    'exercises with worked examples, plus a free evaluation test.';
+    'exercises with worked examples, plus a free level test.';
   var descriptionTag = null;
 
   /* The router owns the document title and description: with one HTML file behind
@@ -827,8 +828,8 @@
 
   function routeQuiz(courseId, lang) {
     var course = Curriculum.getCourse(courseId);
-    setMeta('Evaluation test' + (course ? ' — ' + course.title : ''),
-      'A multiple-choice evaluation test that scores which objectives you already know.');
+    setMeta('Level test' + (course ? ' — ' + course.title : ''),
+      'A free multiple-choice level test that scores which objectives you already know.');
 
     if (window.QuizUI && Quiz.topics(courseId).length) {
       return paint(QuizUI.page(courseId, lang) || notFound());
@@ -836,7 +837,7 @@
     if (!Quiz.has(courseId)) { setMeta('Page not found'); return paint(notFound()); }
 
     var token = routeToken;
-    paint(loadingView('the evaluation test'));
+    paint(loadingView('the level test'));
 
     /* engine and question bank travel together, and only for this route */
     loadScript('js/quiz.js', function (engineOk) {
@@ -844,7 +845,7 @@
         if (token !== routeToken) return;
         paint(engineOk && bankOk && window.QuizUI
           ? (QuizUI.page(courseId, lang) || notFound())
-          : loadFailed('the evaluation test'));
+          : loadFailed('the level test'));
       });
     });
   }

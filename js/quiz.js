@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Evaluation test — engine and views.
+   Level test — engine and views.
    Route:  #/quiz/<courseId>
 
    The page shell is rendered by app.js; everything that changes with the
@@ -109,7 +109,7 @@ window.QuizUI = (function () {
   /* ---------- small pieces ---------- */
 
   function snippet(code) {
-    return '<pre class="code quiz-code"><code>' + UI.esc(code) + '</code></pre>';
+    return '<pre class="code quiz-code" tabindex="0"><code>' + UI.esc(code) + '</code></pre>';
   }
 
   /* The width is carried on data-pct and applied by paintBars() after insertion,
@@ -136,11 +136,20 @@ window.QuizUI = (function () {
 
   /* ---------- intro ---------- */
 
+  /* "Modules 1–4": the bank may not cover the whole course, so the copy says which part. */
+  function coveredSpan(courseId) {
+    var mods = Quiz.modules(courseId);
+    if (!mods.length) return 'the course';
+    var first = mods[0].number, last = mods[mods.length - 1].number;
+    return first === last ? 'Module ' + first : 'Modules ' + first + '–' + last;
+  }
+
   function viewIntro(courseId, lang) {
     var total = Quiz.countQuestions(courseId);
     var topics = Quiz.countTopics(courseId);
     var mods = Quiz.modules(courseId);
     var done = answeredCount(courseId, lang);
+    var span = coveredSpan(courseId);
 
     var coverage = mods.map(function (m) {
       return '<div class="quiz-cover">' +
@@ -154,12 +163,21 @@ window.QuizUI = (function () {
       '</div>';
     }).join('');
 
+    /* the action first: on a phone the explanation below runs two screens */
     return '<div class="quiz-intro">' +
+      '<div class="quiz-start">' +
+        (done
+          ? '<button type="button" class="btn btn-primary" data-quiz="resume">Resume — ' +
+              done + ' of ' + total + ' answered</button>' +
+            '<button type="button" class="btn btn-ghost" data-quiz="restart">Start over</button>'
+          : '<button type="button" class="btn btn-primary" data-quiz="start">Start the test</button>') +
+      '</div>' +
+
       '<div class="panel">' +
         '<span class="rule-label">How the test works</span>' +
         '<ul>' +
           '<li>' + total + ' multiple-choice questions — three for every one of the ' +
-            topics + ' objectives in the course.</li>' +
+            topics + ' objectives in ' + span + '.</li>' +
           '<li>One question at a time. You may go back and change an answer before you finish.</li>' +
           '<li>Nothing is timed. Your progress is saved in this browser, so you can stop and return.</li>' +
           '<li>Switch between C++ and Java at any point. Questions about syntax follow the ' +
@@ -171,14 +189,6 @@ window.QuizUI = (function () {
 
       '<span class="rule-label">What is covered</span>' +
       '<div class="quiz-cover-grid">' + coverage + '</div>' +
-
-      '<div class="quiz-start">' +
-        (done
-          ? '<button type="button" class="btn btn-primary" data-quiz="resume">Resume — ' +
-              done + ' of ' + total + ' answered</button>' +
-            '<button type="button" class="btn btn-ghost" data-quiz="restart">Start over</button>'
-          : '<button type="button" class="btn btn-primary" data-quiz="start">Start the test</button>') +
-      '</div>' +
       '</div>';
   }
 
@@ -378,10 +388,10 @@ window.QuizUI = (function () {
     return '<div class="breadcrumb">' +
         '<a href="#/">Home</a><span>/</span>' +
         '<a href="#/c/' + UI.esc(course.id) + '">' + UI.esc(course.title) + '</a><span>/</span>' +
-        'Evaluation test</div>' +
-      '<span class="eyebrow">' + UI.esc(course.subtitle) + ' &middot; self-assessment</span>' +
-      '<h1 class="page-title">Evaluation Test</h1>' +
-      '<p class="page-lede">Every objective in the course, three questions each. The score at ' +
+        'Level test</div>' +
+      '<span class="eyebrow">' + UI.esc(course.subtitle) + ' &middot; free</span>' +
+      '<h1 class="page-title">Level Test</h1>' +
+      '<p class="page-lede">Every objective in ' + coveredSpan(courseId) + ', three questions each. The score at ' +
         'the end lists the objectives you already know and the ones still to study.</p>' +
       '<div id="quiz-root">' + body(courseId, lang) + '</div>';
   }
@@ -416,7 +426,7 @@ window.QuizUI = (function () {
       state.phase = 'test';
       if (action === 'start') state.index = 0;
       save();
-      refresh(false);
+      refresh(true);
       return true;
     }
 
@@ -428,7 +438,7 @@ window.QuizUI = (function () {
       state = blank(state.course);
       state.phase = 'test';
       save();
-      refresh(false);
+      refresh(true);
       return true;
     }
 
