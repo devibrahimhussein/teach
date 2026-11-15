@@ -154,9 +154,9 @@ function bBlocks(ex, chg) {
   var pool = h('div', { class: 'chips' }), drop = h('div', { class: 'drop' }), node = h('div', null, h('div', { class: 'lab', text: 'Your answer (tap a block to remove it)' }), drop, h('div', { class: 'lab', text: 'Blocks' }), pool);
   function paint() {
     pool.innerHTML = ''; drop.innerHTML = '';
-    order.forEach(function (idx) { if (placed.indexOf(idx) < 0) pool.appendChild(h('button', { class: 'chip', type: 'button', text: items[idx], onclick: function () { placed.push(idx); paint(); chg(); } })); });
+    order.forEach(function (idx) { if (placed.indexOf(idx) < 0) pool.appendChild(h('button', { class: 'chip blk', type: 'button', text: items[idx], onclick: function () { placed.push(idx); paint(); chg(); } })); });
     if (!placed.length) drop.appendChild(h('div', { class: 'ph', text: 'Tap the blocks in order…' }));
-    placed.forEach(function (idx, k) { drop.appendChild(h('button', { class: 'chip', type: 'button', text: items[idx], onclick: function () { placed.splice(k, 1); paint(); chg(); } })); });
+    placed.forEach(function (idx, k) { drop.appendChild(h('button', { class: 'chip blk', type: 'button', text: items[idx], onclick: function () { placed.splice(k, 1); paint(); chg(); } })); });
   }
   paint();
   var target = ex.target[L];
@@ -296,7 +296,7 @@ function renderClass(box) {
   card.appendChild(meta);
   card.appendChild(h('h2', { class: 'q', text: ex.title }));
   card.appendChild(h('p', { class: 'prompt', html: fmt(ex.prompt[lang]) }));
-  if (ex.code && ex.type !== 'trace') card.appendChild(codeBlock(ex.code[lang], ex.numbered));
+  if (ex.code && (ex.type !== 'trace' || ex.showCode)) card.appendChild(codeBlock(ex.code[lang], ex.numbered));
   if (ex.type === 'mini') { card.appendChild(h('div', { class: 'lab', text: 'Output (use your own name)' })); card.appendChild(h('pre', { class: 'ucode', text: ex.target[lang] })); }
 
   var fb = h('div'), actions = h('div', { class: 'actions' }), ui = null;

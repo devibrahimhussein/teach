@@ -193,3 +193,5 @@ html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
 .uni .nav .actions{margin:0;flex:1 1 auto;justify-content:center;flex-wrap:nowrap}
 .uni .nav{align-items:center}
 @media (max-width:640px){.uni .nav{flex-wrap:wrap}.uni .nav .actions{order:-1;flex:1 0 100%}.uni .nav .u-btn{flex:1}}
+
+.uni .chip.blk{white-space:pre;text-align:left}
