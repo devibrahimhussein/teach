@@ -90,12 +90,13 @@ function norm(s, L) {
 function mount(root, session) {
 var EX = session.exercises, PR = session.practice, PTS = session.pts;
 var ST = STORE[session.id] || (STORE[session.id] = { lang: null, mode: 'class', timersOn: true, S: {}, PD: {} });
+var max = !!ST.max;
 var lang = ST.lang, mode = ST.mode, timersOn = ST.timersOn, S = ST.S, PD = ST.PD;
 if (!lang) { lang = 'c'; try { var sv = localStorage.getItem(LANG_KEY); if (sv && LNAME[sv]) lang = sv; } catch (e) {} }
 
 /* ---------- state ---------- */
 function codeBlock(code, numbered) { return h('pre', { class: 'ucode', html: hl(code, lang, numbered) }); }
-function st() { return S[lang] || (S[lang] = { i: 0, ex: {}, wrong: 0, score: 0, done: false }); }
+function st() { return S[lang] || (S[lang] = { i: 0, ex: {}, wrong: 0, score: 0, done: false, started: false }); }
 function ex_(id) { var s = st(); return s.ex[id] || (s.ex[id] = { st: 'new', rem: null, left: false, retry: false, pts: 0 }); }
 function maxScore() { return EX.reduce(function (a, e) { return a + (e.noScore ? 0 : PTS[e.diff]); }, 0); }
 function award(ex, ok) {
@@ -255,15 +256,32 @@ function solution(ex) {
 }
 
 /* ---------- class mode ---------- */
+function renderStart(box) {
+  var total = maxScore(), card = h('div', { class: 'u-card start' });
+  card.appendChild(h('div', { class: 'u-eyebrow', text: 'SESSION ' + session.number + ' · IN CLASS · ' + LNAME[lang].toUpperCase() }));
+  card.appendChild(h('h2', { class: 'q', text: 'Ready to practice?' }));
+  card.appendChild(h('p', { class: 'prompt', html: fmt('**' + EX.length + ' exercises**, from easy to hard, in **' + LNAME[lang] + '**. Maximum score: **' + total + '**. You can change the language above before you start.') }));
+  card.appendChild(h('ul', { class: 'rules', html: [
+    'One exercise at a time. You can **Skip** any exercise.',
+    'First try correct = full points. Come back later = half points.',
+    'Wrong answers cost 2, 4, 6… up to 10 points each, so do not guess.',
+    'Timers: easy ' + TIME.easy + ' s, medium ' + TIME.medium + ' s, hard ' + TIME.hard + ' s. The timer starts when you press Start. You can turn timers off above.',
+    'Use **Maximize** to fill the whole screen with the exercise.'].map(function (t) { return '<li>' + fmt(t) + '</li>'; }).join('') }));
+  card.appendChild(h('div', { class: 'note' }, h('b', { text: 'Language notes: ' + LNAME[lang] }), h('ul', { html: (session.notes[lang] || []).map(function (n) { return '<li>' + fmt(n) + '</li>'; }).join('') })));
+  card.appendChild(h('div', { class: 'actions' }, h('button', { class: 'u-btn gold big-btn', type: 'button', text: 'Start practice →', onclick: function () { st().started = true; render(true); } })));
+  box.appendChild(card);
+}
+
 function renderClass(box) {
   var s = st();
+  if (!s.started) { renderStart(box); return; }
   if (s.done) { renderFinal(box); return; }
   var ex = EX[s.i], e = ex_(ex.id);
   if (RETRY.indexOf(e.st) >= 0 && e.left) e.retry = true;
   var interactive = e.st === 'new' || e.retry;
   var total = maxScore();
 
-  box.appendChild(h('div', { class: 'note' }, h('b', { text: 'Language notes: ' + LNAME[lang] }), h('ul', { html: (session.notes[lang] || []).map(function (n) { return '<li>' + fmt(n) + '</li>'; }).join('') })));
+  box.appendChild(h('details', { class: 'u-notes' }, h('summary', { text: 'Language notes: ' + LNAME[lang] }), h('ul', { html: (session.notes[lang] || []).map(function (n) { return '<li>' + fmt(n) + '</li>'; }).join('') })));
   box.appendChild(h('div', { class: 'bar-row' },
     h('span', { class: 'u-pill', html: 'Score <b>' + s.score + '</b> / ' + total }),
     h('div', { class: 'prog' }, h('i', { style: 'width:' + Math.round(100 * s.i / EX.length) + '%' })),
@@ -385,7 +403,8 @@ function renderPractice(box) {
 /* ---------- shell ---------- */
 function render(scroll) {
   stopTimer();
-  ST.lang = lang; ST.mode = mode; ST.timersOn = timersOn;
+  ST.lang = lang; ST.mode = mode; ST.timersOn = timersOn; ST.max = max;
+  root.classList.toggle('u-max', max);
   root.innerHTML = '';
   var lg = h('div', { class: 'lang', role: 'group', 'aria-label': 'Language' });
   LANGS.forEach(function (l) { lg.appendChild(h('button', { type: 'button', class: lang === l[0] ? 'on' : '', text: l[1], onclick: function () { if (lang === l[0]) return; lang = l[0]; try { localStorage.setItem(LANG_KEY, lang); } catch (e) {} render(); } })); });
@@ -394,14 +413,17 @@ function render(scroll) {
     h('div', { class: 'tabs' },
       h('button', { class: 'tab' + (mode === 'class' ? ' on' : ''), type: 'button', text: 'In class (' + EX.length + ')', onclick: function () { mode = 'class'; render(true); } }),
       h('button', { class: 'tab' + (mode === 'practice' ? ' on' : ''), type: 'button', text: 'Self-practice (' + PR.length + ')', onclick: function () { mode = 'practice'; render(true); } })),
-    h('div', { class: 'u-tools' }, mode === 'class' ? tg : null, h('span', { class: 'u-lbl', text: 'Language' }), lg)));
+    h('div', { class: 'u-tools' }, mode === 'class' ? tg : null, h('button', { class: 'u-btn ghost sm', type: 'button', text: max ? '✕ Exit full screen' : '⤢ Maximize', 'aria-pressed': String(max), onclick: function () { max = !max; render(); if (!max) root.scrollIntoView(); } }), h('span', { class: 'u-lbl', text: 'Language' }), lg)));
   var box = h('div'); root.appendChild(box);
   if (mode === 'class') {
-    if (st().i === 0 && !st().done && ex_(EX[0].id).st === 'new') box.appendChild(h('div', { class: 'note', html: '<b>Rules.</b> One exercise at a time. First try correct = full points. Come back later = half points. Wrong answers cost 2, 4, 6… up to 10 points each, so do not guess. Timers: easy 30 s, medium 60 s, hard 90 s. You can <b>Skip</b> any exercise.' }));
     renderClass(box);
   } else renderPractice(box);
   if (scroll && root.scrollIntoView) root.scrollIntoView();
 }
+document.addEventListener('keydown', function onKey(e) {
+  if (!document.body.contains(root)) { document.removeEventListener('keydown', onKey); return; }
+  if (e.key === 'Escape' && max) { max = false; render(); root.scrollIntoView(); }
+});
 render();
 return { render: render };
 }

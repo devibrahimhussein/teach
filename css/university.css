@@ -165,3 +165,16 @@
 .uni code{border:0}
 .uni h3,.uni h4{margin-top:0}
 .uni .links a{color:var(--link);font-weight:700}
+
+.uni.u-max{position:fixed;top:0;right:0;bottom:0;left:0;z-index:100000;background:var(--cream);overflow:auto;overscroll-behavior:contain;padding:18px clamp(14px,4vw,64px) 40px}
+.uni.u-max>*{max-width:1180px;margin-left:auto;margin-right:auto}
+.uni.u-max .u-card{padding:clamp(20px,3vw,40px)}
+.uni.u-max h2.q{font-size:clamp(24px,3.4vw,34px)}
+.uni.u-max .prompt{font-size:19px}
+.uni.u-max pre.ucode{font-size:16px}
+.uni .u-notes{background:var(--white);border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:var(--radius);padding:8px 14px;margin:10px 0;font-size:14.5px;color:var(--text-dim)}
+.uni .u-notes summary{cursor:pointer;font-weight:700;color:var(--text)}
+.uni .u-notes ul{margin:6px 0 2px;padding-left:20px}
+.uni .start ul.rules{margin:0 0 14px;padding-left:22px;font-size:16.5px}
+.uni .start ul.rules li{margin:5px 0}
+.uni .u-btn.big-btn{font-size:18px;padding:14px 34px}
