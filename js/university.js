@@ -81,7 +81,7 @@ function hl(code, L, numbered) {
 }
 
 function norm(s, L) {
-  s = s.trim();
+  s = s.replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, '"').replace(/[\u2018\u2019\u201A\u201B]/g, "'").replace(/[\u00A0\u200B]/g, ' ').trim();
   var parts = s.split(/("(?:\\.|[^"\\])*")/);
   for (var i = 0; i < parts.length; i += 2) parts[i] = parts[i].replace(/\s+/g, ' ').replace(/\s*(<<|[(),;=])\s*/g, '$1').replace(/std::/g, '').trim();
   var r = parts.join('');
@@ -228,7 +228,7 @@ function bSort(ex, chg) {
 }
 
 function bWrite(ex, chg) {
-  var L = lang, ta = h('textarea', { class: 'w', rows: '2', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', placeholder: 'Type your line here…', oninput: chg });
+  var L = lang, ta = h('textarea', { class: 'w', rows: '2', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', placeholder: 'Type your line here…', oninput: chg });
   return { node: ta, ready: function () { return ta.value.trim().length > 0; },
     correct: function () { var v = norm(ta.value, L); return ex.accept[L].some(function (a) { return norm(a, L) === v; }); } };
 }

@@ -195,3 +195,10 @@ html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
 @media (max-width:640px){.uni .nav{flex-wrap:wrap}.uni .nav .actions{order:-1;flex:1 0 100%}.uni .nav .u-btn{flex:1}}
 
 .uni .chip.blk{white-space:pre;text-align:left}
+
+.uni .checks input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;width:24px;height:24px;margin:1px 0 0;border:2px solid var(--navy);border-radius:7px;background:#fff;cursor:pointer;position:relative;transition:background .15s,border-color .15s}
+.uni .checks input[type=checkbox]:hover{border-color:var(--gold-deep)}
+.uni .checks input[type=checkbox]:focus-visible{outline:3px solid var(--gold-soft);outline-offset:2px}
+.uni .checks input[type=checkbox]:checked{background:var(--navy);border-color:var(--navy)}
+.uni .checks input[type=checkbox]:checked::after{content:"";position:absolute;left:7px;top:2px;width:6px;height:12px;border:solid var(--gold-soft);border-width:0 3px 3px 0;transform:rotate(45deg)}
+.uni .checks label:has(input:checked){background:var(--gold-wash);border-color:var(--gold)}
