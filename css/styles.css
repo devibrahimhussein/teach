@@ -206,6 +206,9 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
   color: var(--navy); background: var(--gold); border-color: var(--gold);
   text-decoration: none;
 }
+/* you are here — set by the router on the current section's link */
+.site-nav a[aria-current="page"] { color: var(--gold); border-color: var(--gold); }
+.site-nav a[aria-current="page"]:hover { color: var(--navy); }
 
 /* ---------- footer (mirrors the flyer's navy booking bar) ---------- */
 
@@ -269,32 +272,29 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
   .footer-who-text { text-align: left; }
 }
 
-/* A fourth nav item (Arduino) no longer fits beside the brand on a phone, so the
-   bar tightens rather than running off the screen: the wordmark drops to the
-   monogram and the links lose their padding. */
+/* On a phone the five links no longer fit beside the brand, so the wordmark drops
+   to the monogram and the links tighten. Every link keeps a 44px tap height. */
 @media (max-width: 700px) {
   .header-inner { gap: 10px; }
   .brand-text { display: none; }
   .site-nav { gap: 2px; }
-  .site-nav a { padding: 7px 10px; font-size: 12.5px; }
-}
-/* Below this the five items stop fitting at the size above, so the bar claws back
-   its gutter and, failing that, scrolls — a clipped link is unreachable, a scrolled
-   one is not. */
-@media (max-width: 460px) {
-  .site-header .wrap { padding: 0 10px; }
-  .site-nav {
-    overflow-x: auto; scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .site-nav::-webkit-scrollbar { display: none; }
-  .site-nav { gap: 0; }
   .site-nav a {
-    /* 24px minimum touch target, with real space between neighbours */
-    padding: 9px 9px; font-size: 11px; letter-spacing: -.01em;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; min-height: 44px;
+    padding: 0 10px; font-size: 13px; white-space: nowrap;
   }
-  .site-nav { gap: 2px; }
+}
+/* Below this they stop fitting on one row at a readable size. Rather than shrink the
+   text or scroll links out of sight, the nav takes a full-width row of its own under
+   the brand, and the links share it evenly. */
+@media (max-width: 460px) {
+  html { scroll-padding-top: 128px; }
+  .header-inner { flex-wrap: wrap; gap: 0; padding: 8px 0 4px; min-height: 0; }
+  .brand-text { display: flex; }
+  .site-nav { flex: 1 0 100%; gap: 0; margin-top: 4px; }
+  .site-nav a { flex: 1 1 auto; justify-content: center; padding: 0 4px; }
+}
+@media (max-width: 350px) {
+  .site-nav a { font-size: 12px; padding: 0 2px; }
 }
 
 /* ---------- hero ---------- */
@@ -507,20 +507,38 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
 
 .hero-nav {
   display: flex; justify-content: center; align-items: center;
-  gap: 10px; margin-top: 20px;
+  gap: 0; margin-top: 12px;
 }
 .hero-slider { --slide-duration: 7s; }
 
+/* The button is the tap area (44px tall); the pill inside is what is drawn. */
 .hero-dot {
-  position: relative; overflow: hidden;
-  width: 10px; height: 10px; padding: 0;
-  border: 0; border-radius: 999px;
-  background: var(--border-firm); cursor: pointer;
+  display: grid; place-items: center;
+  min-width: 30px; height: 44px; padding: 0 10px;
+  border: 0; background: transparent; cursor: pointer;
+}
+.hero-dot-pill {
+  position: relative; overflow: hidden; display: block;
+  width: 10px; height: 10px; border-radius: 999px;
+  background: var(--border-firm);
   transition: width .3s ease, background .2s ease;
 }
-.hero-dot:hover { background: var(--gold-soft); }
+.hero-dot:hover .hero-dot-pill { background: var(--gold-soft); }
 /* active dot widens into a track that the fill sweeps across */
-.hero-dot.is-active { width: 52px; background: var(--gold-wash); }
+.hero-dot.is-active .hero-dot-pill { width: 52px; background: var(--gold-wash); }
+
+.hero-pause {
+  display: grid; place-items: center;
+  width: 44px; height: 44px; margin-left: 6px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-dim); cursor: pointer;
+}
+.hero-pause:hover { color: var(--navy); background: var(--gold-wash); }
+.hero-pause svg { width: 18px; height: 18px; fill: currentColor; }
+.hero-pause .i-play,
+.hero-slider.is-stopped .hero-pause .i-pause { display: none; }
+.hero-slider.is-stopped .hero-pause .i-play { display: block; }
+.hero-slider.is-stopped .hero-dot-fill { animation-play-state: paused; }
 
 .hero-dot-fill {
   position: absolute; left: 0; top: 0; bottom: 0; width: 0;
@@ -537,6 +555,7 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
 /* No autoplay without motion: show the active dot simply filled. */
 @media (prefers-reduced-motion: reduce) {
   .hero-dot.is-active .hero-dot-fill { animation: none; width: 100%; }
+  .hero-pause { display: none; }   /* nothing moves, so there is nothing to pause */
 }
 
 /* "BT3 IT" reads on one line, unlike the landing hero's stacked accent word */
@@ -846,7 +865,8 @@ a.module-row:hover {
   text-decoration: none; transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
-.module-row.is-pending { opacity: .6; border-left-color: var(--border-firm); }
+.module-row.is-pending { border-left-color: var(--border-firm); }
+.module-row.is-pending .module-num { color: var(--text-faint); }
 .module-num {
   flex: none;
   font-family: var(--serif); font-weight: 700; font-size: 21px;
@@ -1043,6 +1063,9 @@ details.hint p { margin: 9px 0 0; font-size: 14px; color: var(--text-dim); }
 }
 .pending-note strong { color: var(--text); }
 .pending-note li::marker { color: var(--gold); }
+.pending-note .rule-label { margin-top: 16px; }
+.pending-note + .service-cta { margin-bottom: 28px; }
+.course-meta .tag { align-self: center; }
 
 /* ---------- module sidebar ---------- */
 

@@ -2,7 +2,7 @@
 
    teach.md gives a suggested module sequence for this course but leaves the detailed
    objectives to be defined with the instructor before exercise content is generated.
-   Every module therefore renders as "Syllabus pending" for now.
+   Every module therefore renders as "Coming soon", with its planned topics, for now.
 
    To publish a module: replace its entry here with a full module file in the style of
    data/fundamentals/m1.js — objectives, each with summary, points, example and three
@@ -112,6 +112,6 @@
   }
 ].forEach(function (m) {
   m.status = 'pending';
-  m.note = 'Suggested module from the course outline. Objectives to be agreed before exercises are written.';
+  m.note = 'The exercises for this module are being written. Message me to hear when it opens.';
   Curriculum.addModule('oop', m);
 });

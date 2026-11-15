@@ -15,14 +15,14 @@ window.CONTACT = {
    straight off the flyer. Shaped to match a service above — title, what it covers,
    packages, CTA — so both offerings render as the same kind of block on the home
    page. What it covers is the course grid itself, built from data/courses.js.
-   One package block covers both courses: a "subject" is either Fundamentals or OOP. */
+   One package block covers both courses: the per-course price applies to either. */
 window.CoursePricing = {
   title: 'Programming & OOP',
   coursesLabel: 'Choose a course',
   packagesLabel: 'Packages included',
   packages: [
     { label: 'Per session', price: '$20', note: 'Single hour · one topic' },
-    { label: 'Per subject', price: '$180', note: 'Full subject · 10 hours', tag: 'Best value', featured: true }
+    { label: 'Per course', price: '$180', note: 'Full course · 10 hours', tag: 'Best value', featured: true }
   ],
   cta: {
     label: 'Chat on WhatsApp',

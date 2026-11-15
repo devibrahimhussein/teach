@@ -38,10 +38,10 @@ Two things to keep true when editing:
 | Course | Modules | Status |
 | --- | --- | --- |
 | Programming Fundamentals | 1 Basics, 2 Conditions, 3 Loops, 4 Arrays, 5 Functions | **84 exercises authored**, C++ and Java |
-| Object-Oriented Programming | 1–10 | Syllabus pending |
+| Object-Oriented Programming | 1–10 | Coming soon |
 | Evaluation test | Fundamentals 1–4 | **66 questions**, three per objective |
 
-Course 2 renders as *Syllabus pending* with its planned topics listed. `teach.md` asks
+Course 2 renders as *Coming soon*, each module page listing its planned topics. `teach.md` asks
 for the detailed syllabus to be agreed with the instructor before exercise content is
 generated, so those modules carry topic outlines rather than invented objectives.
 Fundamentals 6–10 are not published at all until their syllabus is agreed.
@@ -216,8 +216,8 @@ The phone number lives once in `window.CONTACT.whatsapp` (wa.me form: country co
 
 The Programming & OOP prices are not a service — they sit in `window.CoursePricing` in
 `data/services.js` and render under the course grid on the home page, using the same
-`packagesBlock()` as the service blocks. One block covers both courses, since a *subject*
-is either Programming Fundamentals or OOP.
+`packagesBlock()` as the service blocks. One block covers both courses: the
+per-course price applies to Programming Fundamentals or OOP.
 
 ## Adding a module
 
