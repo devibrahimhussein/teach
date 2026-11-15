@@ -327,12 +327,12 @@ function renderClass(box) {
     fb.appendChild(msg);
     if (['full', 'half', 'wrong2'].indexOf(e.st) >= 0 || (e.st === 'done' && false)) card.appendChild(solution(ex));
   }
-  card.appendChild(fb); card.appendChild(actions);
+  card.appendChild(fb);
 
   var last = s.i === EX.length - 1;
   var prev = h('button', { class: 'u-btn ghost', type: 'button', text: '← Previous', disabled: s.i === 0, onclick: function () { go(s.i - 1); } });
   var next = h('button', { class: 'u-btn', type: 'button', text: last ? 'Finish' : 'Next →', disabled: e.st === 'new', onclick: function () { go(s.i + 1); } });
-  card.appendChild(h('div', { class: 'nav' }, prev, next));
+  card.appendChild(h('div', { class: 'nav' }, prev, actions, next));
   box.appendChild(card);
   if (interactive && !e.retry && ex.type !== 'mini') startTimer(ex, e, timerEl);
 }
@@ -415,7 +415,7 @@ function render(scroll) {
       h('button', { class: 'tab' + (mode === 'class' ? ' on' : ''), type: 'button', text: 'In class (' + EX.length + ')', onclick: function () { mode = 'class'; render(true); } }),
       h('button', { class: 'tab' + (mode === 'practice' ? ' on' : ''), type: 'button', text: 'Self-practice (' + PR.length + ')', onclick: function () { mode = 'practice'; render(true); } })),
     h('div', { class: 'u-tools' }, mode === 'class' ? tg : null, h('button', { class: 'u-btn ghost sm', type: 'button', text: max ? '✕ Exit full screen' : '⤢ Maximize', 'aria-pressed': String(max), onclick: function () { max = !max; render(); if (!max) root.scrollIntoView(); } }), h('span', { class: 'u-lbl', text: 'Language' }), lg)));
-  var box = h('div', { class: 'u-body' }); root.appendChild(box);
+  var box = h('div', { class: 'u-body' + (mode === 'class' ? ' cls' : '') }); root.appendChild(box);
   if (mode === 'class') {
     renderClass(box);
   } else renderPractice(box);

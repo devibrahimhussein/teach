@@ -170,7 +170,7 @@
 .uni.u-max .u-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:8px}
 .uni.u-max .u-toolbar{flex:0 0 auto;margin-bottom:8px}
 html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
-.uni.u-max>*{max-width:1180px;margin-left:auto;margin-right:auto}
+.uni.u-max>*{width:100%;max-width:1100px;margin-left:auto;margin-right:auto}
 .uni.u-max .u-card{padding:clamp(20px,3vw,40px)}
 .uni.u-max h2.q{font-size:clamp(24px,3.4vw,34px)}
 .uni.u-max .prompt{font-size:19px}
@@ -181,3 +181,15 @@ html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
 .uni .start ul.rules{margin:0 0 14px;padding-left:22px;font-size:16.5px}
 .uni .start ul.rules li{margin:5px 0}
 .uni .u-btn.big-btn{font-size:18px;padding:14px 34px}
+
+/* fixed-size stage in full screen: same width and height for every exercise */
+.uni.u-max .u-body{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+.uni.u-max .u-body>*{flex:0 0 auto;width:100%}
+.uni.u-max .u-body.cls>.u-card{flex:1 1 0;min-height:0;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;padding-bottom:0}
+.uni.u-max .u-body.cls>.u-card>.nav{margin-top:auto;position:sticky;bottom:0;background:var(--white);padding:14px 0 18px;border-top:1px solid var(--border)}
+.uni.u-max .u-body.cls>.u-card>*{flex:0 0 auto}
+.uni.u-max .u-body:not(.cls){overflow-y:auto}
+
+.uni .nav .actions{margin:0;flex:1 1 auto;justify-content:center;flex-wrap:nowrap}
+.uni .nav{align-items:center}
+@media (max-width:640px){.uni .nav{flex-wrap:wrap}.uni .nav .actions{order:-1;flex:1 0 100%}.uni .nav .u-btn{flex:1}}
