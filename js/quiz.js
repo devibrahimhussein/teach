@@ -18,6 +18,7 @@ window.QuizUI = (function () {
   var PASS = 2 / 3;          /* share of an objective's questions needed to "know" it */
 
   var state = null;          /* { course, phase, index, answers } */
+  var undone = null;         /* the attempt a restart just cleared, until a new answer is given */
 
   /* ---------- state ---------- */
 
@@ -214,6 +215,11 @@ window.QuizUI = (function () {
       '</div>' +
       progressBar(i + 1, all.length) +
 
+      (undone
+        ? '<p class="quiz-notice quiz-undo" role="status">Your previous answers were cleared. ' +
+          '<button type="button" class="linkish" data-quiz="undo">Undo</button></p>'
+        : '') +
+
       (pending
         ? '<p class="quiz-notice">' + pending + ' answer' + (pending === 1 ? '' : 's') +
           ' came from the other language and the choices there are different, so ' +
@@ -367,10 +373,10 @@ window.QuizUI = (function () {
     var course = Curriculum.getCourse(courseId);
     if (!course || !Quiz.has(courseId)) return null;
 
-    if (!state || state.course !== courseId) state = load(courseId);
+    if (!state || state.course !== courseId) { state = load(courseId); undone = null; }
 
     return '<div class="breadcrumb">' +
-        '<a href="#/">Courses</a><span>/</span>' +
+        '<a href="#/">Home</a><span>/</span>' +
         '<a href="#/c/' + UI.esc(course.id) + '">' + UI.esc(course.title) + '</a><span>/</span>' +
         'Evaluation test</div>' +
       '<span class="eyebrow">' + UI.esc(course.subtitle) + ' &middot; self-assessment</span>' +
@@ -414,7 +420,10 @@ window.QuizUI = (function () {
       return true;
     }
 
+    /* No confirmation dialog: the old attempt is kept in memory and offered back
+       with an Undo until the first new answer is given. */
     if (action === 'restart') {
+      undone = state;
       clear(state.course);
       state = blank(state.course);
       state.phase = 'test';
@@ -423,9 +432,15 @@ window.QuizUI = (function () {
       return true;
     }
 
+    if (action === 'undo') {
+      if (undone) { state = undone; undone = null; save(); refresh(false); }
+      return true;
+    }
+
     if (action === 'pick') {
       var entry = Quiz.questions(state.course)[state.index];
       if (entry) {
+        undone = null;
         /* the language is stored with the pick: option 3 in C++ is not option 3 in Java */
         state.answers[entry.qid] = { i: Number(btn.getAttribute('data-i')), lang: UI.currentLang() };
         save();
@@ -471,6 +486,7 @@ window.QuizUI = (function () {
     if (index < 0 && key >= '1' && key <= '9') index = Number(key) - 1;
 
     if (index > -1 && index < count) {
+      undone = null;
       state.answers[entry.qid] = { i: index, lang: lang };
       save();
       refresh(false);

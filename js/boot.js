@@ -74,11 +74,12 @@
   if (seen) return;
   document.documentElement.className += ' is-loading';
 
-  /* Dismissed once the router has painted its first view — that is DOMContentLoaded,
-     since every script on the page is deferred — after a short floor so the overlay
-     reads as a beat rather than a flicker. Waiting on `load` instead would hold the
-     page behind the portrait download for no gain. */
-  var MIN_MS = 550, FADE_MS = 450, MAX_WAIT_MS = 4000;
+  /* Dismissed as soon as the router has painted its first view — that is
+     DOMContentLoaded, since every script on the page is deferred. No minimum display
+     time: holding a ready page behind the overlay only makes the visitor wait. The
+     fade covers the switch. Waiting on `load` instead would hold the page behind the
+     portrait download for no gain. */
+  var MIN_MS = 0, FADE_MS = 450, MAX_WAIT_MS = 4000;
   var start = Date.now(), dismissed = false;
 
   function dismiss() {

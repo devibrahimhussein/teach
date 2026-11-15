@@ -386,11 +386,22 @@
 
     /* the fill span doubles as the autoplay progress bar and its clock */
     var dots = items.map(function (it, i) {
+      /* the button is the 44px tap area; the pill inside is what is drawn */
       return '<button type="button" class="hero-dot' + (i === 0 ? ' is-active' : '') + '" ' +
         'data-slide-to="' + i + '" aria-label="Show ' + esc(it.label) + '"' +
         (i === 0 ? ' aria-current="true"' : '') + '>' +
-        '<span class="hero-dot-fill"></span></button>';
+        '<span class="hero-dot-pill"><span class="hero-dot-fill"></span></span></button>';
     }).join('');
+
+    /* WCAG 2.2.2: anything that moves on its own for more than 5s needs a pause */
+    var pause = '<button type="button" class="hero-pause" data-slide-pause ' +
+      'aria-label="Pause slideshow" aria-pressed="false">' +
+      '<svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<rect x="6" y="5" width="4" height="14" rx="1"></rect>' +
+        '<rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>' +
+      '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"></path></svg>' +
+      '</button>';
 
     return '<section class="hero-slider" role="region" aria-roledescription="carousel" ' +
              'aria-label="Tutoring highlights">' +
@@ -399,7 +410,7 @@
           'aria-label="Previous slide">' + chevron('left') + '</button>' +
         '<button type="button" class="hero-arrow is-next" data-slide-step="1" ' +
           'aria-label="Next slide">' + chevron('right') + '</button>' +
-        '<div class="hero-nav">' + dots + '</div>' +
+        '<div class="hero-nav">' + dots + pause + '</div>' +
       '</section>';
   }
 
@@ -495,21 +506,24 @@
 
   function viewHome() {
     var cards = Curriculum.allCourses().map(function (c, i) {
-      var ready = c.modules.filter(function (m) { return m.status !== 'pending'; }).length;
+      var ready = readyModules(c);
+      /* A course with nothing published says so plainly, instead of a row of zeroes. */
+      var meta = ready
+        ? '<span><strong>' + ready + '</strong> modules</span>' +
+          '<span><strong>' + Curriculum.countExercises(c) + '</strong> exercises</span>'
+        : '<span><strong>' + c.modules.length + '</strong> modules planned</span>' +
+          '<span class="tag">Coming soon</span>';
       return '<a class="course-card' + (i === 0 ? ' is-featured' : '') + '" href="#/c/' + esc(c.id) + '">' +
         '<span class="eyebrow">' + esc(c.subtitle) + '</span>' +
         '<h2>' + esc(c.title) + '</h2>' +
         '<p>' + esc(c.description) + '</p>' +
-        '<div class="course-meta">' +
-          '<span><strong>' + c.modules.length + '</strong> modules</span>' +
-          '<span><strong>' + Curriculum.countExercises(c) + '</strong> exercises</span>' +
-          '<span><strong>' + ready + '</strong> ready</span>' +
-        '</div></a>';
+        '<div class="course-meta">' + meta + '</div></a>';
     }).join('');
 
     var courses = Curriculum.allCourses();
     var published = courses.reduce(function (n, c) { return n + Curriculum.countExercises(c); }, 0);
-    var modules = courses.reduce(function (n, c) { return n + c.modules.length; }, 0);
+    /* only modules a student can open today */
+    var modules = courses.reduce(function (n, c) { return n + readyModules(c); }, 0);
 
     var majors = ['Data Science', 'Computer Science', 'IT', 'MIS', 'Engineering'];
 
@@ -527,7 +541,7 @@
         '</div>' +
         '<div class="hero-actions">' +
           '<a class="btn btn-primary" href="#/c/fundamentals">Start Programming Fundamentals</a>' +
-          '<a class="btn btn-ghost" href="#/c/oop">Explore the OOP course</a>' +
+          '<a class="btn btn-ghost" href="#/quiz/fundamentals">Take the free level test</a>' +
         '</div>' +
         statsRow([
           [courses.length, 'courses'],
@@ -551,17 +565,24 @@
           serviceDetail(s);
       }).join('') +
       stepsBlock() +
-      faqBlock() +
-      '<div class="panel">' +
-        '<span class="rule-label">How this platform works</span>' +
-        '<ul>' +
-          '<li>Pick a course, then open a module.</li>' +
-          '<li>Read the short explanation and example at the top of each objective.</li>' +
-          '<li>Solve the three exercises yourself, in order.</li>' +
-          '<li>Switch between C++ and Java at the top-right of any exercise. The problem never changes &mdash; only the syntax notes and the starter template do.</li>' +
-        '</ul>' +
-      '</div>';
+      faqBlock();
   }
+
+  function readyModules(course) {
+    return course.modules.filter(function (m) { return m.status !== 'pending'; }).length;
+  }
+
+  /* How to use a module page. Lives on the course page, where the student is about
+     to open one, rather than at the foot of the home page next to "How sessions work". */
+  var HOW_TO_PANEL =
+    '<div class="panel">' +
+      '<span class="rule-label">How to use a module</span>' +
+      '<ul>' +
+        '<li>Read the short explanation and example at the top of each objective.</li>' +
+        '<li>Solve the three exercises yourself, in order.</li>' +
+        '<li>Switch between C++ and Java at the top-right of any exercise. The problem never changes &mdash; only the syntax notes and the starter template do.</li>' +
+      '</ul>' +
+    '</div>';
 
   function viewCourse(courseId) {
     var course = Curriculum.getCourse(courseId);
@@ -577,12 +598,12 @@
           '<span>' + esc(m.summary || m.note || '') + '</span>' +
         '</span>' +
         (pending
-          ? '<span class="tag">Syllabus pending</span>'
+          ? '<span class="tag">Coming soon</span>'
           : '<span class="module-count">' + count + ' exercises</span>');
 
-      return pending
-        ? '<div class="module-row is-pending">' + inner + '</div>'
-        : '<a class="module-row" href="#/c/' + esc(course.id) + '/m/' + m.number + '">' + inner + '</a>';
+      /* Pending modules link too: their page lists what the module will cover. */
+      return '<a class="module-row' + (pending ? ' is-pending' : '') + '" ' +
+        'href="#/c/' + esc(course.id) + '/m/' + m.number + '">' + inner + '</a>';
     }).join('');
 
     /* Only courses that have a question bank offer the test. */
@@ -599,10 +620,11 @@
         '</a>'
       : '';
 
-    return '<div class="breadcrumb"><a href="#/">Courses</a><span>/</span>' + esc(course.title) + '</div>' +
+    return '<div class="breadcrumb"><a href="#/">Home</a><span>/</span>' + esc(course.title) + '</div>' +
       '<span class="eyebrow">' + esc(course.subtitle) + '</span>' +
       '<h1 class="page-title">' + esc(course.title) + '</h1>' +
       '<p class="page-lede">' + esc(course.description) + '</p>' +
+      (readyModules(course) ? HOW_TO_PANEL : '') +
       '<div class="module-list">' + rows + '</div>' +
       quizCta;
   }
@@ -613,7 +635,7 @@
     if (!course || !mod) return notFound();
 
     var crumb = '<div class="breadcrumb">' +
-      '<a href="#/">Courses</a><span>/</span>' +
+      '<a href="#/">Home</a><span>/</span>' +
       '<a href="#/c/' + esc(course.id) + '">' + esc(course.title) + '</a><span>/</span>' +
       'Module ' + mod.number + '</div>';
 
@@ -623,14 +645,19 @@
 
     if (mod.status === 'pending' || !mod.objectives) {
       return crumb + head +
-        '<div class="pending-note"><strong>Syllabus not defined yet.</strong> ' +
-        esc(mod.note || 'The detailed objectives for this module are agreed with the instructor before exercise content is generated.') +
+        '<div class="pending-note"><strong>Coming soon.</strong> ' +
+        esc(mod.note || 'The exercises for this module are being written.') +
         (mod.plannedTopics && mod.plannedTopics.length
-          ? '<ul class="planned-topics">' + mod.plannedTopics.map(function (t) {
+          ? '<span class="rule-label">What it will cover</span>' +
+            '<ul class="planned-topics">' + mod.plannedTopics.map(function (t) {
               return '<li>' + esc(t) + '</li>';
             }).join('') + '</ul>'
           : '') +
-        '</div>' + pager(course, mod);
+        '</div>' +
+        ctaRow({ label: 'Ask when it opens',
+          message: 'Hello, I am interested in ' + course.title + ', Module ' + mod.number +
+                   ' (' + plain(mod.title) + '). When does it open?' }) +
+        pager(course, mod);
     }
 
     var body = mod.objectives.map(function (o, i) {
@@ -659,7 +686,8 @@
             '<span class="nav-ex-num">' + (i + 1) + '</span>' +
             '<span class="nav-ex-title">' + esc(plain(ex.title)) + '</span>' +
             '<span class="nav-ex-dot ' + (ex.difficulty || 'Easy').toLowerCase() + '" ' +
-              'title="' + esc(ex.difficulty || 'Easy') + '"></span>' +
+              'title="' + esc(ex.difficulty || 'Easy') + '" aria-hidden="true"></span>' +
+            '<span class="sr-only">, ' + esc(ex.difficulty || 'Easy') + '</span>' +
           '</button>' +
         '</li>';
       }).join('');
@@ -692,7 +720,6 @@
     var next = idx > -1 && idx < mods.length - 1 ? mods[idx + 1] : null;
     var link = function (m, text) {
       if (!m) return '<span></span>';
-      if (m.status === 'pending') return '<span></span>';
       return '<a href="#/c/' + esc(course.id) + '/m/' + m.number + '">' + text + ' ' + esc(m.title) + '</a>';
     };
     return '<nav class="pager">' + link(prev, '←') + link(next, '→') + '</nav>';
@@ -714,7 +741,7 @@
     var title = c.title || 'This course';
     var accent = c.titleAccent || '';
 
-    return '<div class="breadcrumb"><a href="#/">Courses</a><span>/</span>' +
+    return '<div class="breadcrumb"><a href="#/">Home</a><span>/</span>' +
         esc((title + ' ' + accent).trim()) + '</div>' +
 
       '<div class="soon-page">' +
@@ -731,10 +758,10 @@
   }
 
   function notFound() {
-    return '<div class="breadcrumb"><a href="#/">Courses</a></div>' +
+    return '<div class="breadcrumb"><a href="#/">Home</a></div>' +
       '<h1 class="page-title">Page not found</h1>' +
       '<p class="page-lede">That course or module does not exist. ' +
-      '<a href="#/">Back to the course list</a>.</p>';
+      '<a href="#/">Back to the home page</a>.</p>';
   }
 
   /* ---------- routing ---------- */
@@ -771,11 +798,11 @@
   }
 
   function loadFailed(what) {
-    return '<div class="breadcrumb"><a href="#/">Courses</a></div>' +
+    return '<div class="breadcrumb"><a href="#/">Home</a></div>' +
       '<h1 class="page-title">Could not load ' + esc(what) + '</h1>' +
       '<p class="page-lede">The connection dropped before the content arrived. ' +
       '<button type="button" class="linklike" data-reload>Try again</button>, ' +
-      'or go <a href="#/">back to the course list</a>.</p>';
+      'or go <a href="#/">back to the home page</a>.</p>';
   }
 
   /* Only the newest navigation may paint: a visitor who moves on while a file is in
@@ -843,6 +870,19 @@
     });
   }
 
+  /* "You are here" in the header: the link whose route is the current one, or an
+     ancestor of it (a module page lights up its course). */
+  function markNav(hash) {
+    var links = document.querySelectorAll('.site-nav a');
+    var path = hash.replace(/\/+$/, '');
+    for (var i = 0; i < links.length; i++) {
+      var target = links[i].getAttribute('href').replace(/^#/, '');
+      var here = path === target || path.indexOf(target + '/') === 0;
+      if (here) links[i].setAttribute('aria-current', 'page');
+      else links[i].removeAttribute('aria-current');
+    }
+  }
+
   function render() {
     var hash = location.hash.replace(/^#/, '');
     var lang = currentLang();
@@ -850,6 +890,7 @@
     var m;
 
     routeToken++;
+    markNav(hash);
 
     if ((m = hash.match(/^\/university(?:\/s\/(\d+))?\/?$/))) {
       routeUniversity(m[1] ? Number(m[1]) : 0);
@@ -996,6 +1037,14 @@
     if (btn.hasAttribute('data-slide-to') && slider.go) {
       slider.go(Number(btn.getAttribute('data-slide-to')));
       slider.restart();
+      return;
+    }
+
+    if (btn.hasAttribute('data-slide-pause')) {
+      var root = btn.closest('.hero-slider');
+      var stopped = root.classList.toggle('is-stopped');
+      btn.setAttribute('aria-pressed', stopped ? 'true' : 'false');
+      btn.setAttribute('aria-label', stopped ? 'Play slideshow' : 'Pause slideshow');
       return;
     }
 
