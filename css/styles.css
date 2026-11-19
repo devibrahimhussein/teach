@@ -156,7 +156,7 @@ p a:not(.btn) { text-decoration: underline; text-underline-offset: 2px; }
    the background is navy. The browser default is a 1px blue that vanishes on navy. */
 :focus-visible { outline: 3px solid var(--navy); outline-offset: 2px; }
 .site-header :focus-visible, .site-footer :focus-visible, .panel :focus-visible,
-.course-card.is-featured:focus-visible, .package.is-featured :focus-visible,
+.course-card.is-featured:focus-visible,
 pre.code:focus-visible, .quiz-cta:focus-visible { outline-color: var(--gold); }
 
 h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
@@ -221,6 +221,27 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
 /* you are here — set by the router on the current section's link */
 .site-nav a[aria-current="page"] { color: var(--gold); border-color: var(--gold); }
 .site-nav a[aria-current="page"]:hover { color: var(--navy); }
+.site-nav { margin-left: auto; }
+
+/* search and booking, right of the nav */
+.header-tools { display: flex; align-items: center; gap: 8px; flex: none; }
+.header-search {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 50%;
+  color: var(--on-navy-dim); border: 1px solid var(--navy-line);
+  transition: color .15s, border-color .15s, background .15s;
+}
+.header-search svg { width: 20px; height: 20px; }
+.header-search:hover { color: var(--navy); background: var(--gold); border-color: var(--gold); }
+.header-search[aria-current="page"] { color: var(--gold); border-color: var(--gold); }
+.header-book {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px;
+  border-radius: 999px; background: var(--gold); color: var(--navy);
+  font-size: 13.5px; font-weight: 700; white-space: nowrap;
+}
+.header-book:hover { background: var(--gold-soft); color: var(--navy); text-decoration: none; }
+/* the WhatsApp button covers booking on narrower screens */
+@media (max-width: 1100px) { .header-book { display: none; } }
 
 /* ---------- footer (mirrors the flyer's navy booking bar) ---------- */
 
@@ -284,9 +305,10 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
   .footer-who-text { text-align: left; }
 }
 
-/* On a phone the five links no longer fit beside the brand, so the wordmark drops
-   to the monogram and the links tighten. Every link keeps a 44px tap height. */
-@media (max-width: 700px) {
+/* On a phone the six links and the search button no longer fit beside the brand,
+   so the wordmark drops to the monogram and the links tighten. Every link keeps a
+   44px tap height. */
+@media (max-width: 900px) {
   .header-inner { gap: 10px; }
   .brand-text { display: none; }
   .site-nav { gap: 2px; }
@@ -298,11 +320,13 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
 /* Below this they stop fitting on one row at a readable size. Rather than shrink the
    text or scroll links out of sight, the nav takes a full-width row of its own under
    the brand, and the links share it evenly. */
-@media (max-width: 460px) {
+@media (max-width: 640px) {
   html { scroll-padding-top: 128px; }
   .header-inner { flex-wrap: wrap; gap: 0; padding: 8px 0 4px; min-height: 0; }
   .brand-text { display: flex; }
-  .site-nav { flex: 1 0 100%; gap: 0; margin-top: 4px; }
+  .header-tools { order: 2; margin-left: auto; }
+  /* wraps to a second row on the narrowest phones rather than scrolling sideways */
+  .site-nav { order: 3; flex: 1 0 100%; flex-wrap: wrap; gap: 0; margin: 4px 0 0; }
   .site-nav a { flex: 1 1 auto; justify-content: center; padding: 0 4px; }
 }
 @media (max-width: 350px) {
@@ -597,48 +621,6 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; }
   color: var(--gold-figure);
 }
 .subject-name { font-size: 17px; font-weight: 700; color: var(--text); }
-
-/* pricing */
-.package-grid {
-  display: grid; gap: 18px; margin: 0 0 34px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  max-width: 760px;
-}
-.package {
-  position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 30px 22px 26px;
-  text-align: center;
-  box-shadow: var(--shadow);
-}
-.package-label {
-  display: block;
-  font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--gold-deep);
-}
-.package-price {
-  display: block; margin: 12px 0 8px;
-  font-family: var(--serif); font-weight: 700;
-  font-size: clamp(38px, 4vw, 52px); line-height: 1;
-  color: var(--navy);
-}
-.package-note { display: block; font-size: 14px; color: var(--text-dim); }
-
-.package.is-featured {
-  background: var(--navy); border-color: var(--navy);
-}
-.package.is-featured .package-label { color: var(--gold); }
-.package.is-featured .package-price { color: var(--on-navy); }
-.package.is-featured .package-note { color: var(--on-navy-dim); }
-
-.package-tag {
-  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-  background: var(--gold); color: var(--navy);
-  padding: 5px 15px; border-radius: 999px; white-space: nowrap;
-  font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
-}
 
 /* CTA */
 .service-cta { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
@@ -1187,6 +1169,27 @@ details.hint p { margin: 9px 0 0; font-size: 14px; color: var(--text-dim); }
   border-color: var(--gold); background: var(--gold-wash); color: var(--navy);
   text-decoration: none; transform: translateY(-2px);
 }
+/* "Previous module" / "Next module" above the title, so the link says where it goes */
+.pager a {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0; max-width: 48%; border-radius: 14px;
+}
+.pager a:last-child { align-items: flex-end; text-align: right; }
+.pager-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* key for the difficulty dots in the module sidebar */
+.nav-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 0; padding: 12px 10px 0;
+  border-top: 1px solid var(--border); font-size: 12px; color: var(--text-faint);
+}
+.nav-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.nav-legend .nav-ex-dot { display: inline-block; }
+
+/* off-screen textarea for the copy fallback (a class, so the CSP needs no inline style) */
+.copy-scratch { position: fixed; top: 0; left: 0; opacity: 0; pointer-events: none; }
 
 /* ---------- WhatsApp button ---------- */
 
@@ -1516,4 +1519,49 @@ details.quiz-review[open] summary { margin-bottom: 12px; }
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
   }
+}
+
+/* ---------- search ---------- */
+
+.search-form { margin: 22px 0 8px; max-width: 720px; }
+.search-form label { display: block; margin-bottom: 8px; }
+.search-input {
+  width: 100%; min-height: 52px; padding: 0 18px;
+  font: inherit; font-size: 17px; color: var(--text);
+  background: var(--surface); border: 1.5px solid var(--border-firm); border-radius: 12px;
+}
+.search-input:focus { border-color: var(--navy); outline: 3px solid var(--gold-wash); outline-offset: 0; }
+.search-hint { margin: 8px 0 0; font-size: 13px; color: var(--text-faint); }
+.search-status { margin: 22px 0 10px; font-size: 14px; color: var(--text-dim); }
+.search-results { list-style: none; margin: 0; padding: 0; max-width: 820px; }
+.search-results li + li { margin-top: 10px; }
+.search-results a {
+  display: block; padding: 14px 18px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--gold);
+  color: var(--text);
+}
+.search-results a:hover { border-color: var(--gold); text-decoration: none; }
+.search-kind {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--gold-deep);
+}
+.search-title { display: block; font-weight: 700; font-size: 16px; margin: 2px 0; }
+.search-where { display: block; font-size: 13.5px; color: var(--text-dim); }
+.search-results mark { background: var(--gold-wash); color: inherit; padding: 0 1px; border-radius: 3px; }
+.search-empty { max-width: 720px; }
+.search-hint kbd {
+  font-family: var(--mono); font-size: 12px; padding: 1px 6px;
+  border: 1px solid var(--border-firm); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); color: var(--text);
+}
+
+/* the objective or exercise a search result (or any deep link) landed on */
+.is-target { animation: target-flash 2.4s ease-out; }
+.is-target:focus { outline: none; }
+@keyframes target-flash {
+  0%, 35% { box-shadow: 0 0 0 4px var(--gold); }
+  100%    { box-shadow: 0 0 0 4px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-target { animation: none; box-shadow: 0 0 0 4px var(--gold); }
 }

@@ -186,7 +186,7 @@ Consequences when editing:
 
 ## Adding a service
 
-A *service* is a flyer offering — subjects, delivery, pricing, WhatsApp CTA — as opposed
+A *service* is a flyer offering — subjects, delivery, WhatsApp CTA — as opposed
 to the exercise courses. They render on the home page and at `#/services`. Push another
 object onto `window.Services` in `data/services.js`:
 
@@ -199,12 +199,6 @@ object onto `window.Services` in `data/services.js`:
   subjectsLabel: 'All subjects covered',
   subjects: ['Networking', 'Assembly'],          // auto-numbered 01, 02, …
   delivery: ['Live Sessions', 'Online'],
-  packagesLabel: 'Packages included',
-  packages: [
-    { label: 'Per session', price: '$30', note: 'Two hours · one topic' },
-    { label: 'Per month', price: '$180', note: 'Full month · 16 hours',
-      tag: 'Best value', featured: true }       // featured renders as the navy card
-  ],
   cta: { label: 'Chat on WhatsApp', message: 'Prefilled WhatsApp message.' }
 }
 ```
@@ -212,12 +206,11 @@ object onto `window.Services` in `data/services.js`:
 The phone number lives once in `window.CONTACT.whatsapp` (wa.me form: country code, no
 `+`, no spaces). The CTA URL and its prefilled text are built from it at render time.
 
-## Course pricing
+## Pricing
 
-The Programming & OOP prices are not a service — they sit in `window.CoursePricing` in
-`data/services.js` and render under the course grid on the home page, using the same
-`packagesBlock()` as the service blocks. One block covers both courses: the
-per-course price applies to Programming Fundamentals or OOP.
+No prices are published on the site — rates are agreed over WhatsApp. The
+Programming & OOP offering (`window.CoursePricing` in `data/services.js`) carries only
+its title, course-grid label and CTA.
 
 ## Adding a module
 

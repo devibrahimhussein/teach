@@ -251,11 +251,41 @@ window.QuizUI = (function () {
           : '<button type="button" class="btn btn-primary" data-quiz="next">Next &rarr;</button>') +
       '</nav>' +
 
-      (last ? '' :
-        '<p class="quiz-early">' +
-          '<button type="button" class="linkish" data-quiz="finish">Finish now and see my score</button>' +
-          ' &mdash; unanswered questions count as wrong.</p>') +
+      unansweredNote(courseId, lang, last) +
       '</div>';
+  }
+
+  /* Index of the first question with no answer in this language, or -1. */
+  function firstUnanswered(courseId, lang) {
+    var all = Quiz.questions(courseId);
+    for (var i = 0; i < all.length; i++) if (givenOf(all[i], lang) == null) return i;
+    return -1;
+  }
+
+  /* Error prevention before scoring: says how many questions are still blank, that
+     they will count as wrong, and offers a jump to the first one — on the last
+     question, where "Finish & score" is about to be pressed, as well as before it. */
+  function unansweredNote(courseId, lang, last) {
+    var total = Quiz.countQuestions(courseId);
+    var blank = total - answeredCount(courseId, lang);
+    var first = firstUnanswered(courseId, lang);
+    var jump = (first > -1 && first !== state.index)
+      ? ' <button type="button" class="linkish" data-quiz="jump">Go to question ' +
+          (first + 1) + '</button>'
+      : '';
+
+    if (last) {
+      if (!blank) return '';
+      return '<p class="quiz-notice quiz-blank">' + blank + ' question' +
+        (blank === 1 ? ' is' : 's are') + ' still unanswered and will count as wrong.' +
+        jump + '</p>';
+    }
+    return '<p class="quiz-early">' +
+      '<button type="button" class="linkish" data-quiz="finish">Finish now and see my score</button>' +
+      ' &mdash; ' + (blank
+        ? blank + ' unanswered question' + (blank === 1 ? '' : 's') + ' would count as wrong.'
+        : 'every question is answered.') +
+      '</p>';
   }
 
   /* ---------- result ---------- */
@@ -385,10 +415,10 @@ window.QuizUI = (function () {
 
     if (!state || state.course !== courseId) { state = load(courseId); undone = null; }
 
-    return '<div class="breadcrumb">' +
+    return '<nav class="breadcrumb" aria-label="Breadcrumb">' +
         '<a href="#/">Home</a><span>/</span>' +
         '<a href="#/c/' + UI.esc(course.id) + '">' + UI.esc(course.title) + '</a><span>/</span>' +
-        'Level test</div>' +
+        'Level test</nav>' +
       '<span class="eyebrow">' + UI.esc(course.subtitle) + ' &middot; free</span>' +
       '<h1 class="page-title">Level Test</h1>' +
       '<p class="page-lede">Every objective in ' + coveredSpan(courseId) + ', three questions each. The score at ' +
@@ -396,12 +426,35 @@ window.QuizUI = (function () {
       '<div id="quiz-root">' + body(courseId, lang) + '</div>';
   }
 
+  /* Every refresh replaces the button that was just pressed, which would drop a
+     keyboard user's focus onto <body> and send their next Tab back to the header.
+     Focus goes back to the same control in the new markup (matched on its action,
+     option number or language), or failing that to the top of the test. */
+  function focusKey(el) {
+    if (!el || !el.getAttribute) return null;
+    if (el.hasAttribute('data-lang')) return '[data-lang="' + el.getAttribute('data-lang') + '"]';
+    var a = el.getAttribute('data-quiz');
+    if (!a) return null;
+    if (a === 'pick') return '[data-quiz="pick"][data-i="' + el.getAttribute('data-i') + '"]';
+    return '[data-quiz="' + a + '"]';
+  }
+
   function refresh(scroll) {
     var root = document.getElementById('quiz-root');
     if (!root || !state) return;
+    var had = root.contains(document.activeElement) ? focusKey(document.activeElement) : null;
+    var wasInside = root.contains(document.activeElement);
+
     root.innerHTML = body(state.course, UI.currentLang());
     paintBars(root);
     if (scroll) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    if (!wasInside) return;
+    var target = (had && root.querySelector(had + ':not([disabled])')) ||
+                 root.querySelector('.quiz-ask, .score-head, .quiz-start');
+    if (!target) return;
+    if (!target.matches('button, a')) target.setAttribute('tabindex', '-1');
+    try { target.focus({ preventScroll: true }); } catch (e) { target.focus(); }
   }
 
   /* ---------- events ---------- */
@@ -459,6 +512,12 @@ window.QuizUI = (function () {
       return true;
     }
 
+    if (action === 'jump') {
+      var gap = firstUnanswered(state.course, UI.currentLang());
+      if (gap > -1) { state.index = gap; save(); refresh(true); }
+      return true;
+    }
+
     if (action === 'next') { step(1); return true; }
     if (action === 'prev') { step(-1); return true; }
 
@@ -488,6 +547,11 @@ window.QuizUI = (function () {
 
     var entry = Quiz.questions(state.course)[state.index];
     if (!entry) return;
+
+    /* A focused code block is focusable precisely so the arrows can scroll it
+       sideways; there they must not turn the page as well. */
+    var t = e.target;
+    if (t && t.closest && t.closest('pre, .samples-wrap, input, textarea, select, [contenteditable]')) return;
 
     var lang = UI.currentLang();
     var key = String(e.key || '').toUpperCase();
