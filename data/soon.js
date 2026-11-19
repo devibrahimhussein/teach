@@ -37,15 +37,16 @@ window.SoonCourses = [
     title: 'AI',
     titleAccent: '& Claude',
 
-    lede: 'How machines learn, from the mathematics up — taught the same way as the ' +
-          'rest of this platform, with problems you solve yourself.',
+    lede: 'How machines learn, from the mathematics up, and how to build working ' +
+          'tools with Claude — taught the same way as the rest of this platform, ' +
+          'with problems you solve yourself.',
 
     note: 'The course is being prepared now, and sessions open once it is ready. ' +
           'Message me to be told when it starts.',
 
     cta: {
-      label: 'Ask about AI',
-      message: 'Hello, I am interested in the AI course. When does it start?'
+      label: 'Ask about AI & Claude',
+      message: 'Hello, I am interested in the AI & Claude course. When does it start?'
     }
   }
 ];

@@ -35,7 +35,7 @@
       imagesizes="(max-width: 999px) min(88vw, 480px), 480px"
       media="(min-width: 621px)" fetchpriority="high">
 
-<link rel="stylesheet" href="css/styles.css?v=20261115-11">
+<link rel="stylesheet" href="css/styles.css?v=20261119-3">
 
 <!-- ?v= is a cache buster. There is no build step, so browsers happily keep serving
      yesterday's app.js after an update — which shows up as pages that "do not exist"
@@ -47,14 +47,14 @@
      boot.js is the only script that is not deferred: the preloader gate has to run
      before the first paint. Everything else is deferred, so nothing here blocks the
      parser and the page paints while the app downloads. -->
-<script src="js/boot.js?v=20261115-11"></script>
-<script defer src="data/courses.js?v=20261115-11"></script>
-<script defer src="data/oop.js?v=20261115-11"></script>
-<script defer src="data/soon.js?v=20261115-11"></script>
-<script defer src="data/services.js?v=20261115-11"></script>
-<script defer src="data/home.js?v=20261115-11"></script>
-<script defer src="data/quiz/quiz.js?v=20261115-11"></script>
-<script defer src="js/app.js?v=20261115-11"></script>
+<script src="js/boot.js?v=20261119-3"></script>
+<script defer src="data/courses.js?v=20261119-3"></script>
+<script defer src="data/oop.js?v=20261119-3"></script>
+<script defer src="data/soon.js?v=20261119-3"></script>
+<script defer src="data/services.js?v=20261119-3"></script>
+<script defer src="data/home.js?v=20261119-3"></script>
+<script defer src="data/quiz/quiz.js?v=20261119-3"></script>
+<script defer src="js/app.js?v=20261119-3"></script>
 
 <!-- Structured data. Inline, so the Content-Security-Policy carries its SHA-256 —
      see the note in _headers if you edit this block. -->
@@ -102,6 +102,17 @@
       <a href="#/ai">AI</a>
       <a href="#/quiz/fundamentals">Level test</a>
     </nav>
+    <div class="header-tools">
+      <a class="header-search" href="#/search" aria-label="Search exercises and topics" title="Search (press /)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"></circle>
+          <path d="M16 16 L20.5 20.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path>
+        </svg>
+      </a>
+      <!-- Hidden on phones, where the WhatsApp button already sits on every screen. -->
+      <a class="header-book" href="https://wa.me/96176614115?text=Hello%2C%20I%20would%20like%20to%20book%20a%20session."
+         target="_blank" rel="noopener">Book a session</a>
+    </div>
   </div>
 </header>
 

@@ -25,8 +25,8 @@ window.HomeContent = {
       },
       {
         title: 'Book your slots',
-        body: 'Pick the hours that fit your week. Single sessions and full ' +
-              'packages are both available.'
+        body: 'Pick the hours that fit your week — a single session, or a regular ' +
+              'slot every week.'
       },
       {
         title: 'Start solving',
@@ -49,13 +49,12 @@ window.HomeContent = {
       {
         q: 'Are sessions live or online?',
         a: 'Either. Live sessions run in Beirut; online sessions run over a screen ' +
-           'share and cover exactly the same material at the same price.'
+           'share and cover exactly the same material.'
       },
       {
         q: 'Can I book a single session first?',
-        a: 'Yes. A single hour of Programming or OOP is $20, and a BT3 IT session ' +
-           'is two hours at $30. Take one, then decide whether the full package is ' +
-           'worth it.'
+        a: 'Yes. Take one session, then decide whether to continue. Message me on ' +
+           'WhatsApp for the rates.'
       },
       {
         q: 'Do you help with university assignments?',
@@ -76,7 +75,7 @@ window.HomeContent = {
       {
         q: 'What do I need before starting the OOP course?',
         a: 'Programming Fundamentals, or the equivalent from your own coursework: ' +
-           'variables, conditions, loops, arrays and functions. Take the evaluation ' +
+           'variables, conditions, loops, arrays and functions. Take the free level ' +
            'test if you are unsure where you stand.'
       }
     ]

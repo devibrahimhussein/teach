@@ -1,7 +1,7 @@
 /* Tutoring services — the offerings from the printed flyers.
 
    These are distinct from the two exercise courses: a service describes what is
-   taught, how it is delivered and what it costs, and ends in a WhatsApp CTA.
+   taught and how it is delivered, and ends in a WhatsApp CTA.
    Add another flyer by pushing a second object with the same shape. */
 
 window.CONTACT = {
@@ -11,19 +11,13 @@ window.CONTACT = {
   place: 'Beirut · Live or Online'
 };
 
-/* The Programming & OOP offering: the two exercise courses and what they cost,
-   straight off the flyer. Shaped to match a service above — title, what it covers,
-   packages, CTA — so both offerings render as the same kind of block on the home
-   page. What it covers is the course grid itself, built from data/courses.js.
-   One package block covers both courses: the per-course price applies to either. */
+/* The Programming & OOP offering. Shaped to match a service below — title, what it
+   covers, CTA — so both offerings render as the same kind of block on the home page.
+   What it covers is the course grid itself, built from data/courses.js.
+   No prices are published on the site: they are agreed over WhatsApp. */
 window.CoursePricing = {
   title: 'Programming & OOP',
   coursesLabel: 'Choose a course',
-  packagesLabel: 'Packages included',
-  packages: [
-    { label: 'Per session', price: '$20', note: 'Single hour · one topic' },
-    { label: 'Per course', price: '$180', note: 'Full course · 10 hours', tag: 'Best value', featured: true }
-  ],
   cta: {
     label: 'Chat on WhatsApp',
     message: 'Hi Mr. Ibrahim, I am interested in Programming & OOP tutoring.'
@@ -59,12 +53,6 @@ window.Services = [
       ['2', 'hours per session'],
       ['16', 'hours per month'],
       ['Live', 'or online']
-    ],
-
-    packagesLabel: 'Packages included',
-    packages: [
-      { label: 'Per session', price: '$30', note: 'Two hours · one topic' },
-      { label: 'Per month', price: '$180', note: 'Full month · 16 hours', tag: 'Best value', featured: true }
     ],
 
     cta: {

@@ -257,22 +257,6 @@
       portraitFigure();
   }
 
-  /* Shared by the service blocks and the course pricing, so a price card looks the
-     same wherever it appears. */
-  function packagesBlock(label, packages) {
-    return '<span class="rule-label">' + esc(label) + '</span>' +
-      '<div class="package-grid">' +
-        packages.map(function (p) {
-          return '<div class="package' + (p.featured ? ' is-featured' : '') + '">' +
-            (p.tag ? '<span class="package-tag">' + esc(p.tag) + '</span>' : '') +
-            '<span class="package-label">' + esc(p.label) + '</span>' +
-            '<span class="package-price">' + esc(p.price) + '</span>' +
-            '<span class="package-note">' + esc(p.note) + '</span>' +
-          '</div>';
-        }).join('') +
-      '</div>';
-  }
-
   function ctaRow(cta) {
     return '<div class="service-cta">' +
         '<a class="btn btn-whatsapp" href="' + esc(waLink(cta.message)) + '" ' +
@@ -294,14 +278,13 @@
         }).join('') +
       '</div>' +
 
-      packagesBlock(s.packagesLabel, s.packages) +
       ctaRow(s.cta) +
 
       '</div>';
   }
 
   /* The Programming & OOP offering, built to the same shape as serviceDetail above:
-     what it covers, then its packages, then its CTA. The courses are what it covers,
+     what it covers, then its CTA. The courses are what it covers,
      so the grid sits where a service puts its subject list. */
   function courseOffering(grid) {
     var p = window.CoursePricing;
@@ -311,7 +294,6 @@
       '<div class="service-detail" id="offer-courses">' +
         '<span class="rule-label">' + esc(p.coursesLabel) + '</span>' +
         '<div class="course-grid">' + grid + '</div>' +
-        packagesBlock(p.packagesLabel, p.packages) +
         ctaRow(p.cta) +
       '</div>';
   }
@@ -621,7 +603,7 @@
         '</a>'
       : '';
 
-    return '<div class="breadcrumb"><a href="#/">Home</a><span>/</span>' + esc(course.title) + '</div>' +
+    return '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/">Home</a><span>/</span>' + esc(course.title) + '</nav>' +
       '<span class="eyebrow">' + esc(course.subtitle) + '</span>' +
       '<h1 class="page-title">' + esc(course.title) + '</h1>' +
       '<p class="page-lede">' + esc(course.description) + '</p>' +
@@ -635,10 +617,10 @@
     var mod = Curriculum.getModule(courseId, number);
     if (!course || !mod) return notFound();
 
-    var crumb = '<div class="breadcrumb">' +
+    var crumb = '<nav class="breadcrumb" aria-label="Breadcrumb">' +
       '<a href="#/">Home</a><span>/</span>' +
       '<a href="#/c/' + esc(course.id) + '">' + esc(course.title) + '</a><span>/</span>' +
-      'Module ' + mod.number + '</div>';
+      'Module ' + mod.number + '</nav>';
 
     var head = '<span class="eyebrow">Module ' + mod.number + '</span>' +
       '<h1 class="page-title">' + esc(mod.title) + '</h1>' +
@@ -710,6 +692,12 @@
         '</summary>' +
         '<nav class="module-nav-inner" aria-label="Module contents">' +
           '<ol class="nav-objectives">' + items + '</ol>' +
+          /* the dots otherwise explain themselves only in a hover tooltip */
+          '<p class="nav-legend" aria-hidden="true">' +
+            '<span><i class="nav-ex-dot easy"></i>Easy</span>' +
+            '<span><i class="nav-ex-dot medium"></i>Medium</span>' +
+            '<span><i class="nav-ex-dot hard"></i>Hard</span>' +
+          '</p>' +
         '</nav>' +
       '</details>';
   }
@@ -719,11 +707,17 @@
     var idx = mods.indexOf(mod);
     var prev = idx > 0 ? mods[idx - 1] : null;
     var next = idx > -1 && idx < mods.length - 1 ? mods[idx + 1] : null;
-    var link = function (m, text) {
+    /* "Previous module" / "Next module" in words: a bare arrow is read aloud as
+       "leftwards arrow" and tells a sighted visitor nothing about where it goes. */
+    var link = function (m, label, arrow) {
       if (!m) return '<span></span>';
-      return '<a href="#/c/' + esc(course.id) + '/m/' + m.number + '">' + text + ' ' + esc(m.title) + '</a>';
+      return '<a href="#/c/' + esc(course.id) + '/m/' + m.number + '">' +
+        '<span class="pager-label">' + arrow + ' ' + label + '</span>' +
+        esc(plain(m.title)) + '</a>';
     };
-    return '<nav class="pager">' + link(prev, '←') + link(next, '→') + '</nav>';
+    return '<nav class="pager" aria-label="Modules">' +
+      link(prev, 'Previous module', '<span aria-hidden="true">&larr;</span>') +
+      link(next, 'Next module', '<span aria-hidden="true">&rarr;</span>') + '</nav>';
   }
 
   /* The announced-but-unwritten courses. The whole page is the announcement: a badge,
@@ -742,8 +736,8 @@
     var title = c.title || 'This course';
     var accent = c.titleAccent || '';
 
-    return '<div class="breadcrumb"><a href="#/">Home</a><span>/</span>' +
-        esc((title + ' ' + accent).trim()) + '</div>' +
+    return '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/">Home</a><span>/</span>' +
+        esc((title + ' ' + accent).trim()) + '</nav>' +
 
       '<div class="soon-page">' +
         '<span class="soon-badge">' + esc(c.eyebrow || 'Coming soon') + '</span>' +
@@ -759,7 +753,7 @@
   }
 
   function notFound() {
-    return '<div class="breadcrumb"><a href="#/">Home</a></div>' +
+    return '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/">Home</a></nav>' +
       '<h1 class="page-title">Page not found</h1>' +
       '<p class="page-lede">That course or module does not exist. ' +
       '<a href="#/">Back to the home page</a>.</p>';
@@ -781,6 +775,11 @@
     if (descriptionTag && description) descriptionTag.setAttribute('content', plain(description));
   }
 
+  /* The link that was clicked is destroyed by the repaint, which drops keyboard and
+     screen-reader focus onto <body>. Every paint after the first moves it to the new
+     view instead, the way a full page load would. #app carries tabindex="-1". */
+  var painted = false;
+
   function paint(html) {
     var app = document.getElementById('app');
     app.innerHTML = html;
@@ -788,6 +787,10 @@
     initSlider();
     initModuleNav();
     if (window.QuizUI) QuizUI.paintBars(app);
+    if (painted) {
+      try { app.focus({ preventScroll: true }); } catch (e) { app.focus(); }
+    }
+    painted = true;
   }
 
   /* Shown while a deferred file is in flight. It replaces a view the visitor asked
@@ -799,7 +802,7 @@
   }
 
   function loadFailed(what) {
-    return '<div class="breadcrumb"><a href="#/">Home</a></div>' +
+    return '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/">Home</a></nav>' +
       '<h1 class="page-title">Could not load ' + esc(what) + '</h1>' +
       '<p class="page-lede">The connection dropped before the content arrived. ' +
       '<button type="button" class="linklike" data-reload>Try again</button>, ' +
@@ -810,21 +813,249 @@
      flight must not have the old destination appear underneath them. */
   var routeToken = 0;
 
-  function routeModule(courseId, number, lang) {
+  /* #/c/<course>/m/<n>/<anchor> lands on one objective or exercise — the links a
+     search result points at. The anchor is scrolled to, focused and flashed. */
+  function revealTarget(id) {
+    var el = id && document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ block: 'start' });
+    el.setAttribute('tabindex', '-1');
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    el.classList.remove('is-target');
+    void el.offsetWidth;
+    el.classList.add('is-target');
+  }
+
+  function routeModule(courseId, number, lang, target) {
     var course = Curriculum.getCourse(courseId);
     var mod = Curriculum.getModule(courseId, number);
     if (!course || !mod) { setMeta('Page not found'); return paint(notFound()); }
 
     setMeta('Module ' + mod.number + ' ' + mod.title + ' — ' + course.title, mod.summary);
-    if (!mod.deferred) return paint(viewModule(courseId, number, lang));
+    if (!mod.deferred) {
+      paint(viewModule(courseId, number, lang));
+      return revealTarget(target);
+    }
 
     var token = routeToken;
     paint(loadingView('Module ' + mod.number + ', ' + plain(mod.title)));
     Curriculum.loadModule(courseId, number, function (loaded) {
       if (token !== routeToken) return;
       paint(loaded ? viewModule(courseId, number, lang) : loadFailed('this module'));
+      if (loaded) revealTarget(target);
     });
   }
+
+  /* ---------- search ---------- */
+
+  /* Everything a student might look for: courses, modules (with a pending module's
+     planned topics), objectives and exercises, the announced courses and the level
+     test. Objectives and exercises exist only once their module file has loaded,
+     so the index is rebuilt on every query rather than cached. */
+  function searchIndex() {
+    var items = [];
+    Curriculum.allCourses().forEach(function (c) {
+      items.push({ kind: 'Course', rank: 0, title: c.title, where: c.subtitle,
+        text: c.subtitle + ' ' + c.description, href: '#/c/' + c.id });
+
+      c.modules.forEach(function (m) {
+        var base = '#/c/' + c.id + '/m/' + m.number;
+        var place = c.title + ' · Module ' + m.number + ', ' + plain(m.title);
+        items.push({
+          kind: m.status === 'pending' ? 'Module · coming soon' : 'Module', rank: 1,
+          title: 'Module ' + m.number + ': ' + plain(m.title), where: c.title,
+          text: plain((m.summary || '') + ' ' + (m.plannedTopics || []).join(' ')),
+          href: base
+        });
+        (m.objectives || []).forEach(function (o, oi) {
+          items.push({ kind: 'Objective', rank: 2, title: plain(o.title), where: place,
+            text: plain(o.summary || ''), href: base + '/obj-' + (oi + 1) });
+          (o.exercises || []).forEach(function (ex, i) {
+            items.push({
+              kind: 'Exercise · ' + (ex.difficulty || 'Easy'), rank: 3,
+              title: plain(ex.title), where: place + ' · ' + plain(o.title),
+              text: plain(ex.description || ''),
+              href: base + '/ex-' + (oi + 1) + '-' + (i + 1)
+            });
+          });
+        });
+      });
+
+      if (window.Quiz && Quiz.has(c.id)) {
+        items.push({ kind: 'Level test', rank: 1, title: 'Level test: ' + c.title,
+          where: 'Free, multiple choice',
+          text: 'quiz exam assessment evaluation test placement', href: '#/quiz/' + c.id });
+      }
+    });
+
+    (window.SoonCourses || []).forEach(function (s) {
+      var name = (s.title + ' ' + (s.titleAccent || '')).trim();
+      items.push({ kind: 'Course · coming soon', rank: 0, title: name, where: 'Announced',
+        text: s.lede || '', href: '#/' + s.id });
+    });
+    return items;
+  }
+
+  function searchWords(q) {
+    return String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  }
+
+  /* Every word must appear somewhere; a word in the title outranks one in the body. */
+  function searchMatches(q) {
+    var words = searchWords(q);
+    if (!words.length) return [];
+    return searchIndex().map(function (it) {
+      var title = it.title.toLowerCase();
+      var all = title + ' ' + it.where.toLowerCase() + ' ' + it.text.toLowerCase();
+      for (var i = 0; i < words.length; i++) if (all.indexOf(words[i]) < 0) return null;
+      var inTitle = words.filter(function (w) { return title.indexOf(w) > -1; }).length;
+      it.score = inTitle * 10 - it.rank;
+      return it;
+    }).filter(Boolean).sort(function (a, b) { return b.score - a.score; });
+  }
+
+  function highlight(text, q) {
+    var words = searchWords(q).map(function (w) {
+      return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    });
+    if (!words.length) return esc(text);
+    return String(text).split(new RegExp('(' + words.join('|') + ')', 'gi'))
+      .map(function (part, i) { return i % 2 ? '<mark>' + esc(part) + '</mark>' : esc(part); })
+      .join('');
+  }
+
+  var search = { loading: false, failed: false };
+  var SEARCH_LIMIT = 40;
+
+  function searchStatus(q, count) {
+    var tail = search.loading ? ' Still loading the exercises…' :
+      search.failed ? ' Some modules could not be loaded, so a few exercises may be missing.' : '';
+    if (!searchWords(q).length) {
+      return 'Search ' + Curriculum.allCourses().reduce(function (n, c) {
+        return n + Curriculum.countExercises(c);
+      }, 0) + ' exercises, every objective and module, and the level test.' + tail;
+    }
+    if (!count) return 'No results for “' + q.trim() + '”.' + tail;
+    return count + ' result' + (count === 1 ? '' : 's') + ' for “' + q.trim() + '”' +
+      (count > SEARCH_LIMIT ? ', showing the first ' + SEARCH_LIMIT : '') + '.' + tail;
+  }
+
+  function searchList(q, hits) {
+    if (!searchWords(q).length) return '';
+    if (!hits.length) {
+      return '<div class="search-empty panel">' +
+        '<span class="rule-label">Nothing matched</span>' +
+        '<ul>' +
+          '<li>Check the spelling, or try a shorter word: “loop” finds more than “looping”.</li>' +
+          '<li>Search by topic (“arrays”, “switch”) or by what an exercise does (“discount”, “average”).</li>' +
+          '<li>Or browse <a href="#/c/fundamentals">Programming Fundamentals</a> module by module.</li>' +
+        '</ul></div>';
+    }
+    return '<ol class="search-results">' + hits.slice(0, SEARCH_LIMIT).map(function (it) {
+      return '<li><a href="' + esc(it.href) + '">' +
+        '<span class="search-kind">' + esc(it.kind) + '</span>' +
+        '<span class="search-title">' + highlight(it.title, q) + '</span>' +
+        '<span class="search-where">' + esc(it.where) + '</span>' +
+      '</a></li>';
+    }).join('') + '</ol>';
+  }
+
+  function viewSearch(q) {
+    var hits = searchMatches(q);
+    return '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/">Home</a>' +
+        '<span>/</span>Search</nav>' +
+      '<h1 class="page-title">Search</h1>' +
+      '<form class="search-form" role="search" data-search-form>' +
+        '<label class="eyebrow" for="search-q">Courses, modules, objectives and exercises</label>' +
+        '<input class="search-input" id="search-q" type="search" autocomplete="off" ' +
+          'spellcheck="false" enterkeyhint="search" value="' + esc(q) + '">' +
+        '<p class="search-hint">Results update as you type. Press <kbd>/</kbd> on any page to come back here.</p>' +
+      '</form>' +
+      '<p class="search-status" id="search-status" role="status">' + esc(searchStatus(q, hits.length)) + '</p>' +
+      '<div id="search-list">' + searchList(q, hits) + '</div>';
+  }
+
+  /* Repaints only the status and the list, so the field keeps focus and caret. */
+  function updateSearch(q) {
+    var status = document.getElementById('search-status');
+    var list = document.getElementById('search-list');
+    if (!status || !list) return;
+    var hits = searchMatches(q);
+    status.textContent = searchStatus(q, hits.length);
+    list.innerHTML = searchList(q, hits);
+  }
+
+  function currentQuery() {
+    var input = document.getElementById('search-q');
+    return input ? input.value : '';
+  }
+
+  function routeSearch(q) {
+    setMeta('Search', 'Search every course, module, objective and exercise.');
+    paint(viewSearch(q));
+    var input = document.getElementById('search-q');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+
+    /* exercises live in the deferred module files: fetch every published one */
+    var pending = [];
+    Curriculum.allCourses().forEach(function (c) {
+      c.modules.forEach(function (m) {
+        if (m.deferred && m.src && m.status !== 'pending') pending.push([c.id, m.number]);
+      });
+    });
+    if (!pending.length) return;
+
+    var token = routeToken, left = pending.length;
+    search.loading = true;
+    search.failed = false;
+    updateSearch(q);
+    pending.forEach(function (p) {
+      Curriculum.loadModule(p[0], p[1], function (mod) {
+        if (!mod || mod.deferred) search.failed = true;
+        if (--left) return;
+        search.loading = false;
+        if (token === routeToken) updateSearch(currentQuery());
+      });
+    });
+  }
+
+  var searchTimer = null;
+
+  document.addEventListener('input', function (e) {
+    if (!e.target || e.target.id !== 'search-q') return;
+    var q = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      updateSearch(q);
+      /* keeps the query in the address so Back and a shared link return to it;
+         replaceState fires no hashchange, so the page is not rebuilt mid-typing */
+      if (history.replaceState) {
+        history.replaceState(null, '', '#/search' + (q.trim() ? '?q=' + encodeURIComponent(q.trim()) : ''));
+      }
+    }, 120);
+  });
+
+  document.addEventListener('submit', function (e) {
+    if (!e.target || !e.target.hasAttribute('data-search-form')) return;
+    e.preventDefault();
+    /* Enter opens the best match */
+    var first = document.querySelector('#search-list .search-results a');
+    if (first) location.hash = first.getAttribute('href');
+  });
+
+  /* "/" from anywhere opens search — a convention from GitHub, YouTube and Slack. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, [contenteditable]')) return;
+    e.preventDefault();
+    var input = document.getElementById('search-q');
+    if (input) input.focus();
+    else location.hash = '#/search';
+  });
 
   function routeQuiz(courseId, lang) {
     var course = Curriculum.getCourse(courseId);
@@ -874,8 +1105,8 @@
   /* "You are here" in the header: the link whose route is the current one, or an
      ancestor of it (a module page lights up its course). */
   function markNav(hash) {
-    var links = document.querySelectorAll('.site-nav a');
-    var path = hash.replace(/\/+$/, '');
+    var links = document.querySelectorAll('.site-nav a, .header-search');
+    var path = hash.replace(/\?.*$/, '').replace(/\/+$/, '');
     for (var i = 0; i < links.length; i++) {
       var target = links[i].getAttribute('href').replace(/^#/, '');
       var here = path === target || path.indexOf(target + '/') === 0;
@@ -895,8 +1126,12 @@
 
     if ((m = hash.match(/^\/university(?:\/s\/(\d+))?\/?$/))) {
       routeUniversity(m[1] ? Number(m[1]) : 0);
-    } else if ((m = hash.match(/^\/c\/([\w-]+)\/m\/(\d+)/))) {
-      routeModule(m[1], m[2], lang);
+    } else if ((m = hash.match(/^\/c\/([\w-]+)\/m\/(\d+)(?:\/((?:obj|ex)-[\d-]+))?/))) {
+      routeModule(m[1], m[2], lang, m[3]);
+    } else if ((m = hash.match(/^\/search\/?(?:\?q=(.*))?$/))) {
+      var q = '';
+      try { q = decodeURIComponent(m[1] || ''); } catch (err) { q = m[1] || ''; }
+      routeSearch(q);
     } else if ((m = hash.match(/^\/([\w-]+)\/?$/)) && (soon = soonCourse(m[1]))) {
       setMeta((soon.title + ' ' + (soon.titleAccent || '')).trim(), soon.lede);
       paint(viewSoon(soon));
@@ -1075,28 +1310,60 @@
     }
   });
 
+  /* The button's own label carries the result, and role="status" on it is not
+     allowed, so a shared polite live region announces it to screen readers. */
+  var announcer = null;
+
+  function announce(msg) {
+    if (!announcer) {
+      announcer = document.createElement('div');
+      announcer.className = 'sr-only';
+      announcer.setAttribute('role', 'status');
+      document.body.appendChild(announcer);
+    }
+    announcer.textContent = '';
+    setTimeout(function () { announcer.textContent = msg; }, 50);
+  }
+
   function copyText(text, btn) {
-    var done = function () {
-      var old = btn.textContent;
-      btn.textContent = 'Copied';
-      setTimeout(function () { btn.textContent = old; }, 1200);
+    var flash = function (label, msg, ms) {
+      if (!btn.hasAttribute('data-label')) btn.setAttribute('data-label', btn.textContent);
+      btn.textContent = label;
+      announce(msg);
+      clearTimeout(btn._t);
+      btn._t = setTimeout(function () { btn.textContent = btn.getAttribute('data-label'); }, ms);
+    };
+    var done = function () { flash('Copied', 'Code copied to the clipboard', 1200); };
+    /* Never fail silently: select the code so one keystroke finishes the job. */
+    var failed = function () {
+      var pre = btn.parentElement.nextElementSibling;
+      if (pre && window.getSelection) {
+        var range = document.createRange();
+        range.selectNodeContents(pre);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      var keys = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘C' : 'Ctrl+C';
+      flash('Press ' + keys, 'Copy failed. The code is selected, press ' + keys + ' to copy it', 3000);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done, failed); });
     } else {
-      fallback(text, done);
+      fallback(text, done, failed);
     }
   }
 
-  function fallback(text, done) {
+  function fallback(text, done, failed) {
     var ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
+    ta.className = 'copy-scratch';
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand('copy'); done(); } catch (e) { /* give up quietly */ }
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     document.body.removeChild(ta);
+    if (ok) done(); else failed();
   }
 
   window.addEventListener('hashchange', render);
