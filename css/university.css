@@ -210,3 +210,80 @@ html.u-lock,html.u-lock body{overflow:hidden!important;height:100%}
 .uni .donebox:has(input:checked) .dtxt::before{content:"Done \2713  \00b7  "}
 .uni .donebox:has(input:checked) .dtxt{font-size:0}
 .uni .donebox:has(input:checked) .dtxt::before{font-size:14px;content:"Done \2713"}
+
+/* ---------- microinteractions (spec: README.md, "Microinteractions") ---------- */
+.uni{--ease-out:cubic-bezier(.2,.7,.2,1);--ease-spring:cubic-bezier(.34,1.56,.64,1)}
+
+/* trigger states: hover, press, disabled — distinct for every button */
+.uni .u-btn,.uni .tab,.uni .opt,.uni .chip,.uni .slot,.uni .lang button{transition:background .14s,border-color .14s,color .14s,box-shadow .14s,transform .1s ease,opacity .14s}
+.uni .u-btn:hover:not(:disabled){background:var(--navy-soft);box-shadow:0 10px 22px -10px rgba(22,33,63,.9)}
+.uni .u-btn.ghost:hover:not(:disabled){background:var(--gold-wash);border-color:var(--gold)}
+.uni .u-btn.gold:hover:not(:disabled){background:var(--gold-soft)}
+.uni .tab:hover:not(.on){border-color:var(--navy)}
+.uni .lang button:hover:not(.on){color:var(--text);background:var(--gold-wash)}
+.uni .u-btn:active:not(:disabled),.uni .tab:active,.uni .lang button:active{transform:scale(.96);transition-duration:.06s}
+.uni .opt:active:not(:disabled),.uni .chip:active:not(:disabled),.uni .slot:active{transform:scale(.97);transition-duration:.06s}
+
+/* Check comes alive the moment the answer is complete */
+.uni .u-btn.is-armed{animation:u-armed .45s var(--ease-spring)}
+@keyframes u-armed{0%{transform:scale(.94)}55%{transform:scale(1.06)}100%{transform:scale(1)}}
+
+/* the readiness line: why Check is greyed out, and how far along the answer is */
+.uni .u-ready{margin:4px 0 0;font-size:13.5px;color:var(--text-faint);min-height:1.6em}
+.uni .u-ready.is-ready{color:var(--ok);font-weight:700}
+.uni .u-ready.is-ready::before{content:"✓ "}
+
+/* filled inputs look filled */
+.uni select.filled{border-color:var(--navy);background:var(--gold-wash);color:var(--navy);font-weight:700}
+.uni select:focus-visible{outline:3px solid var(--gold-soft);outline-offset:1px}
+.uni .drop.filled{border-style:solid;border-color:var(--gold)}
+.uni .slot.next{border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(199,160,46,.25)}
+.uni .chip.is-new,.uni .slot.is-new{animation:u-land .3s var(--ease-spring)}
+@keyframes u-land{0%{transform:translateY(-6px) scale(.92);opacity:.4}100%{transform:none;opacity:1}}
+.uni .bin.target{animation:u-beckon 1.2s ease-in-out infinite}
+@keyframes u-beckon{0%,100%{background:var(--surface-2)}50%{background:var(--gold-wash)}}
+
+/* the score moves when it changes */
+.uni .u-score{position:relative;display:inline-flex}
+.uni .u-delta{position:absolute;right:-6px;top:-4px;font-weight:800;font-size:14px;padding:2px 8px;border-radius:999px;pointer-events:none;animation:u-float 1.3s var(--ease-out) forwards}
+.uni .u-delta.up{background:var(--gold);color:var(--navy)}
+.uni .u-delta.down{background:var(--bad);color:#fff}
+@keyframes u-float{0%{opacity:0;transform:translateY(4px) scale(.8)}18%{opacity:1;transform:translateY(-10px) scale(1)}70%{opacity:1;transform:translateY(-16px)}100%{opacity:0;transform:translateY(-22px)}}
+
+/* verdicts arrive, they do not just appear */
+.uni .fb.is-enter{animation:u-verdict .32s var(--ease-out)}
+@keyframes u-verdict{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.uni .fb:focus{outline:none}
+.uni .fb:focus-visible{outline:3px solid var(--gold-soft);outline-offset:2px}
+.uni .u-card.is-wrong{animation:u-shake .38s ease}
+@keyframes u-shake{0%,100%{transform:none}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+
+/* Signature: the </> mark closes itself on a correct answer. The brackets slide in
+   from either side and the slash drops between them, in the brand's gold. */
+.uni .u-stamp{display:inline-flex;align-items:center;justify-content:center;gap:1px;vertical-align:-3px;margin-right:10px;
+  font-family:var(--mono);font-weight:800;font-size:14px;line-height:1;padding:5px 7px;border-radius:7px;background:var(--gold);color:var(--navy);
+  animation:u-stamp-in .5s var(--ease-spring)}
+.uni .u-stamp i{font-style:normal;display:inline-block}
+.uni .u-stamp i:first-child{animation:u-stamp-l .42s var(--ease-out) both}
+.uni .u-stamp i:nth-child(2){animation:u-stamp-s .5s var(--ease-spring) .12s both}
+.uni .u-stamp i:last-child{animation:u-stamp-r .42s var(--ease-out) both}
+@keyframes u-stamp-in{0%{transform:scale(.6);box-shadow:0 0 0 0 rgba(199,160,46,.6)}60%{transform:scale(1.12)}100%{transform:scale(1);box-shadow:0 0 0 10px rgba(199,160,46,0)}}
+@keyframes u-stamp-l{from{transform:translateX(-8px);opacity:0}to{transform:none;opacity:1}}
+@keyframes u-stamp-r{from{transform:translateX(8px);opacity:0}to{transform:none;opacity:1}}
+@keyframes u-stamp-s{from{transform:translateY(-10px) rotate(-30deg);opacity:0}to{transform:none;opacity:1}}
+.uni .u-streak{display:inline-block;margin-left:8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 9px;border-radius:999px;background:var(--navy);color:var(--gold-soft);vertical-align:2px;animation:u-land .4s var(--ease-spring) .2s both}
+
+/* self-practice */
+.uni .u-pill.is-bump{animation:u-armed .4s var(--ease-spring)}
+.uni .pcard.open .ans{animation:u-verdict .25s var(--ease-out)}
+.uni input[type=checkbox]:checked{animation:u-check .28s var(--ease-spring)}
+@keyframes u-check{0%{transform:scale(.8)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* timers: the last ten seconds pulse; the count ticks visibly */
+.uni .timer{transition:color .2s,border-color .2s}
+
+@media (prefers-reduced-motion:reduce){
+  .uni .bin.target{animation:none;background:var(--gold-wash)}
+  .uni .u-delta{animation:none;opacity:1;transform:translateY(-14px)}
+}

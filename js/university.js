@@ -55,6 +55,35 @@ function shuf(arr, seed, notSame) {
   return out;
 }
 function same(a, b) { return a.length === b.length && a.every(function (v, i) { return v === b[i]; }); }
+
+/* ---------- feedback helpers ----------
+   The site's channels (window.UI, from app.js) when they are there; silent when
+   this engine runs on its own page. */
+function say(msg) { if (window.UI && UI.announce) UI.announce(msg); }
+function toast(msg) { if (window.UI && UI.notify) UI.notify(msg); }
+function replay(el, cls) { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function still() { return !window.requestAnimationFrame || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+/* Rolls a number from one value to another, so a score change is seen happening. */
+function countTo(el, from, to) {
+  el.textContent = String(to);
+  if (from === to || still()) return;
+  var start = null, dur = Math.min(700, 250 + Math.abs(to - from) * 30);
+  el.textContent = String(from);
+  window.requestAnimationFrame(function frame(t) {
+    if (start === null) start = t;
+    var k = Math.min(1, (t - start) / dur);
+    el.textContent = String(Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))));
+    if (k < 1) window.requestAnimationFrame(frame);
+  });
+}
+var MOD = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘' : 'Ctrl';
+/* Long loops: beginner scaffolding that retires once a student has shown they know.
+   Counts live in this browser only; without storage every hint simply stays. */
+function uses(key) { try { return Number(localStorage.getItem('teach.uni.uses.' + key)) || 0; } catch (e) { return 0; } }
+function used(key, n) { try { localStorage.setItem('teach.uni.uses.' + key, String(n == null ? uses(key) + 1 : n)); } catch (e) {} }
+var VETERAN = 5;   /* checks after which the readiness line drops its explanations */
+/* The signature: the site's </> mark closing itself, as code does when it is right. */
+var STAMP = '<span class="u-stamp" aria-hidden="true"><i>&lt;</i><i>/</i><i>&gt;</i></span>';
 function lines(x) { return Array.isArray(x) ? x.join('\n') : x; }
 
 var KW = { c: 'int return void char double float long const bool true false if else include main printf scanf puts fgets stdio stdbool h',
@@ -94,6 +123,10 @@ var EX = session.exercises, PR = session.practice, PTS = session.pts;
 var ST = STORE[session.id] || (STORE[session.id] = { lang: null, mode: 'class', timersOn: true, S: {}, PD: {} });
 var max = !!ST.max;
 var lang = ST.lang, mode = ST.mode, timersOn = ST.timersOn, S = ST.S, PD = ST.PD;
+/* The result of the Check just pressed, read once by the next render so the score
+   rolls, the stamp closes and focus lands on the verdict — and never again when the
+   same exercise is revisited. Same for arriving on the final screen. */
+var lastCheck = null, justDone = false;
 if (!lang) { lang = 'c'; try { var sv = localStorage.getItem(LANG_KEY); if (sv && LNAME[sv]) lang = sv; } catch (e) {} }
 
 /* ---------- state ---------- */
@@ -103,14 +136,16 @@ function ex_(id) { var s = st(); return s.ex[id] || (s.ex[id] = { st: 'new', rem
 function maxScore() { return EX.reduce(function (a, e) { return a + (e.noScore ? 0 : PTS[e.diff]); }, 0); }
 function award(ex, ok) {
   var s = st(), e = ex_(ex.id), base = PTS[ex.diff], first = e.st === 'new';
+  /* a streak counts first-try correct answers in a row; anything else ends it */
+  s.streak = ok && first ? (s.streak || 0) + 1 : 0;
   if (ok) { var p = first ? base : Math.floor(base / 2); e.st = first ? 'full' : 'half'; e.pts = p; s.score += p; }
-  else { s.wrong++; var pen = Math.min(2 * s.wrong, 10); var before = s.score; s.score = Math.max(0, s.score - pen); e.pen = (e.pen || 0) + (before - s.score); e.lastPen = pen; e.st = first ? 'wrong1' : 'wrong2'; }
+  else { s.wrong++; var pen = Math.min(2 * s.wrong, 10); var before = s.score; s.score = Math.max(0, s.score - pen); e.pen = (e.pen || 0) + (before - s.score); e.lastPen = before - s.score; e.st = first ? 'wrong1' : 'wrong2'; }
   e.retry = false;
 }
 function go(n) {
   var s = st(); stopTimer();
   ex_(EX[s.i].id).left = true;
-  if (n >= EX.length) { s.done = true; } else { s.done = false; s.i = Math.max(0, n); }
+  if (n >= EX.length) { s.done = true; justDone = true; } else { s.done = false; s.i = Math.max(0, n); }
   render(true);
 }
 
@@ -125,7 +160,9 @@ function startTimer(ex, e, el) {
   tick = setInterval(function () {
     if (!document.body.contains(root)) { stopTimer(); return; }
     e.rem--; paint();
-    if (e.rem <= 0) { stopTimer(); e.st = 'timeout'; e.retry = false; render(); }
+    /* the red pulse is visual only; the same warning is spoken once */
+    if (e.rem === 10) say('10 seconds left');
+    if (e.rem <= 0) { stopTimer(); e.st = 'timeout'; e.retry = false; st().streak = 0; say('Time is up'); render(); }
   }, 1000);
 }
 
@@ -146,90 +183,102 @@ function bChoice(ex, chg) {
       ex.type === 'tf' ? null : h('span', { class: 'L', text: letter(i) }), inner);
     btns.push(b); node.appendChild(b);
   });
-  return { node: node, ready: function () { return sel >= 0; }, correct: function () { return opts[sel].ok; } };
+  return { node: node, ready: function () { return sel >= 0; }, progress: function () { return [sel >= 0 ? 1 : 0, 1]; }, correct: function () { return opts[sel].ok; } };
 }
 
 function bBlocks(ex, chg) {
-  var L = lang, items = ex.blocks[L], order = shuf(items.map(function (_, i) { return i; }), ex.id + L, true), placed = [];
+  var L = lang, items = ex.blocks[L], order = shuf(items.map(function (_, i) { return i; }), ex.id + L, true), placed = [], fresh = -1;
   var pool = h('div', { class: 'chips' }), drop = h('div', { class: 'drop' }), node = h('div', null, h('div', { class: 'lab', text: 'Your answer (tap a block to remove it)' }), drop, h('div', { class: 'lab', text: 'Blocks' }), pool);
   function paint() {
     pool.innerHTML = ''; drop.innerHTML = '';
-    order.forEach(function (idx) { if (placed.indexOf(idx) < 0) pool.appendChild(h('button', { class: 'chip blk', type: 'button', text: items[idx], onclick: function () { placed.push(idx); paint(); chg(); } })); });
+    order.forEach(function (idx) { if (placed.indexOf(idx) < 0) pool.appendChild(h('button', { class: 'chip blk', type: 'button', text: items[idx], onclick: function () { placed.push(idx); fresh = idx; paint(); chg(); } })); });
     if (!placed.length) drop.appendChild(h('div', { class: 'ph', text: 'Tap the blocks in order…' }));
-    placed.forEach(function (idx, k) { drop.appendChild(h('button', { class: 'chip blk', type: 'button', text: items[idx], onclick: function () { placed.splice(k, 1); paint(); chg(); } })); });
+    placed.forEach(function (idx, k) { drop.appendChild(h('button', { class: 'chip blk' + (idx === fresh ? ' is-new' : ''), type: 'button', text: items[idx], onclick: function () { placed.splice(k, 1); paint(); chg(); } })); });
+    drop.classList.toggle('filled', placed.length === items.length);
+    fresh = -1;
   }
   paint();
   var target = ex.target[L];
   return { node: h('div', null, h('div', { class: 'lab', text: 'Target output' }), h('pre', { class: 'ucode', text: target }), node),
-    ready: function () { return placed.length === items.length; }, correct: function () { return same(placed.map(function (i) { return items[i]; }), items); } };
+    ready: function () { return placed.length === items.length; }, progress: function () { return [placed.length, items.length]; },
+    correct: function () { return same(placed.map(function (i) { return items[i]; }), items); } };
 }
 
 function bFill(ex, chg) {
   var L = lang, parts = ex.template[L].split('___'), n = parts.length - 1, slots = [], i;
   for (i = 0; i < n; i++) slots.push(null);
-  var chips = shuf(ex.chips[L].map(function (c, i) { return i; }), ex.id + L, true), line = h('div', { class: 'fillline' }), pool = h('div', { class: 'chips' });
+  var chips = shuf(ex.chips[L].map(function (c, i) { return i; }), ex.id + L, true), line = h('div', { class: 'fillline' }), pool = h('div', { class: 'chips' }), fresh = -1;
   function paint() {
     line.innerHTML = '';
+    var next = slots.indexOf(null);
     parts.forEach(function (p, k) {
       line.appendChild(h('span', { html: hl(p, L) }));
-      if (k < n) line.appendChild(h('button', { type: 'button', class: 'slot' + (slots[k] != null ? ' full' : ''), text: slots[k] != null ? ex.chips[L][slots[k]] : '…', onclick: function () { slots[k] = null; paint(); chg(); } }));
+      /* the blank the next chip will land in is marked, so the rule "fills left to right" is visible */
+      if (k < n) line.appendChild(h('button', { type: 'button', class: 'slot' + (slots[k] != null ? ' full' : k === next ? ' next' : '') + (k === fresh ? ' is-new' : ''), text: slots[k] != null ? ex.chips[L][slots[k]] : '…', onclick: function () { slots[k] = null; paint(); chg(); } }));
     });
     pool.innerHTML = '';
     chips.forEach(function (ci) {
-      if (slots.indexOf(ci) < 0) pool.appendChild(h('button', { class: 'chip', type: 'button', text: ex.chips[L][ci], onclick: function () { var f = slots.indexOf(null); if (f >= 0) { slots[f] = ci; paint(); chg(); } } }));
+      if (slots.indexOf(ci) < 0) pool.appendChild(h('button', { class: 'chip', type: 'button', text: ex.chips[L][ci], onclick: function () { var f = slots.indexOf(null); if (f >= 0) { slots[f] = ci; fresh = f; paint(); chg(); } } }));
     });
+    fresh = -1;
   }
   paint();
   return { node: h('div', null, line, h('div', { class: 'lab', text: 'Word bank (tap a chip, tap a filled blank to undo)' }), pool),
-    ready: function () { return slots.indexOf(null) < 0; }, correct: function () { return same(slots.map(function (c) { return ex.chips[L][c]; }), ex.answers[L]); } };
+    ready: function () { return slots.indexOf(null) < 0; }, progress: function () { return [slots.filter(function (x) { return x != null; }).length, n]; },
+    correct: function () { return same(slots.map(function (c) { return ex.chips[L][c]; }), ex.answers[L]); } };
 }
 
 function bTrace(ex, chg) {
   var L = lang, rows = ex.rows, sels = [], tb = h('tbody');
   rows.forEach(function (r, k) {
     var opts = shuf(r.opts, ex.id + L + k);
-    var sel = h('select', { onchange: chg }, h('option', { value: '-1', text: 'choose…' }));
+    var sel = h('select', { 'aria-label': 'Row ' + (k + 1), onchange: function () { sel.classList.toggle('filled', sel.value !== '-1'); chg(); } }, h('option', { value: '-1', text: 'choose…' }));
     opts.forEach(function (o, i) { sel.appendChild(h('option', { value: i, text: o.t })); });
     sels.push({ sel: sel, opts: opts });
     tb.appendChild(h('tr', null, h('td', { text: String(k + 1) }), h('td', { class: 'cd', html: hl(r.code[L], L) }), h('td', null, sel)));
   });
   var node = h('table', { class: 't' }, h('thead', null, h('tr', null, h('th', { text: '#' }), h('th', { text: 'STATEMENT' }), h('th', { text: ex.colHead || 'SCREEN AFTER THIS STATEMENT' }))), tb);
   return { node: node, ready: function () { return sels.every(function (x) { return x.sel.value !== '-1'; }); },
+    progress: function () { return [sels.filter(function (x) { return x.sel.value !== '-1'; }).length, sels.length]; },
     correct: function () { return sels.every(function (x) { return x.opts[+x.sel.value].ok; }); } };
 }
 
 function bMatch(ex, chg) {
   var rights = shuf(ex.pairs.map(function (p) { return p.r; }), ex.id + lang), sels = [], tb = h('tbody');
   ex.pairs.forEach(function (p) {
-    var sel = h('select', { onchange: chg }, h('option', { value: '', text: 'choose…' }));
+    var sel = h('select', { 'aria-label': 'Match for ' + p.l, onchange: function () { sel.classList.toggle('filled', sel.value !== ''); chg(); } }, h('option', { value: '', text: 'choose…' }));
     rights.forEach(function (r) { sel.appendChild(h('option', { value: r, text: r })); });
     sels.push(sel);
     tb.appendChild(h('tr', null, h('td', { class: 'cd' }, h('code', { text: p.l })), h('td', null, sel)));
   });
   return { node: h('table', { class: 't' }, tb), ready: function () { return sels.every(function (s) { return s.value !== ''; }); },
+    progress: function () { return [sels.filter(function (s) { return s.value !== ''; }).length, sels.length]; },
     correct: function () { return sels.every(function (s, i) { return s.value === ex.pairs[i].r; }); } };
 }
 
 function bSort(ex, chg) {
-  var L = lang, items = shuf(ex.items[L], ex.id + L), where = items.map(function () { return -1; }), cur = -1;
+  var L = lang, items = shuf(ex.items[L], ex.id + L), where = items.map(function () { return -1; }), cur = -1, fresh = -1;
   var pool = h('div', { class: 'chips' }), binsEl = h('div', { class: 'bins' });
   function paint() {
     pool.innerHTML = ''; binsEl.innerHTML = '';
-    items.forEach(function (it, i) { if (where[i] < 0) pool.appendChild(h('button', { class: 'chip' + (cur === i ? ' sel' : ''), type: 'button', html: hl(it.t, L), onclick: function () { cur = cur === i ? -1 : i; paint(); } })); });
+    items.forEach(function (it, i) { if (where[i] < 0) pool.appendChild(h('button', { class: 'chip' + (cur === i ? ' sel' : ''), type: 'button', 'aria-pressed': String(cur === i), html: hl(it.t, L), onclick: function () { cur = cur === i ? -1 : i; paint(); chg(); } })); });
     ex.bins.forEach(function (b, bi) {
-      var box = h('div', { class: 'bin' + (cur >= 0 ? ' target' : ''), onclick: function () { if (cur >= 0) { where[cur] = bi; cur = -1; paint(); chg(); } } }, h('h4', { text: b }));
-      items.forEach(function (it, i) { if (where[i] === bi) box.appendChild(h('button', { class: 'chip', type: 'button', html: hl(it.t, L), onclick: function (ev) { ev.stopPropagation(); where[i] = -1; paint(); chg(); } })); });
+      var box = h('div', { class: 'bin' + (cur >= 0 ? ' target' : ''), onclick: function () { if (cur >= 0) { where[cur] = bi; fresh = cur; cur = -1; paint(); chg(); } } }, h('h4', { text: b }));
+      items.forEach(function (it, i) { if (where[i] === bi) box.appendChild(h('button', { class: 'chip' + (i === fresh ? ' is-new' : ''), type: 'button', html: hl(it.t, L), onclick: function (ev) { ev.stopPropagation(); where[i] = -1; paint(); chg(); } })); });
       binsEl.appendChild(box);
     });
+    fresh = -1;
   }
   paint();
   return { node: h('div', null, h('div', { class: 'lab', text: 'Statements' }), pool, binsEl), ready: function () { return where.every(function (w) { return w >= 0; }); },
+    progress: function () { return [where.filter(function (w) { return w >= 0; }).length, items.length]; },
+    hint: function () { return cur >= 0 ? 'Now tap the box this statement belongs in.' : ''; },
     correct: function () { return items.every(function (it, i) { return it.bin === where[i]; }); } };
 }
 
 function bWrite(ex, chg) {
-  var L = lang, ta = h('textarea', { class: 'w', rows: '2', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', placeholder: 'Type your line here…', oninput: chg });
-  return { node: ta, ready: function () { return ta.value.trim().length > 0; },
+  var L = lang, ta = h('textarea', { class: 'w', rows: '2', spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off', autocomplete: 'off', placeholder: 'Type your line here…', 'aria-label': 'Your line of code', oninput: chg });
+  return { node: ta, ready: function () { return ta.value.trim().length > 0; }, progress: function () { return [ta.value.trim() ? 1 : 0, 1]; },
     correct: function () { var v = norm(ta.value, L); return ex.accept[L].some(function (a) { return norm(a, L) === v; }); } };
 }
 
@@ -257,20 +306,26 @@ function solution(ex) {
   return box;
 }
 
+/* What a wrong answer actually cost: the score never goes below 0, so the message
+   says what was taken, not the nominal penalty. */
+function lost(e) { return e.lastPen ? '−' + e.lastPen + ' point' + (e.lastPen === 1 ? '' : 's') : 'No points lost: your score is already 0.'; }
+
 /* ---------- class mode ---------- */
 function renderStart(box) {
   var total = maxScore(), card = h('div', { class: 'u-card start' });
   card.appendChild(h('div', { class: 'u-eyebrow', text: 'SESSION ' + session.number + ' · IN CLASS · ' + LNAME[lang].toUpperCase() }));
   card.appendChild(h('h2', { class: 'q', text: 'Ready to practice?' }));
   card.appendChild(h('p', { class: 'prompt', html: fmt('**' + EX.length + ' exercises**, from easy to hard, in **' + LNAME[lang] + '**. Maximum score: **' + total + '**. You can change the language above before you start.') }));
-  card.appendChild(h('ul', { class: 'rules', html: [
+  var rules = h('ul', { class: 'rules', html: [
     'One exercise at a time. You can **Skip** any exercise.',
     'First try correct = full points. Come back later = half points.',
     'Wrong answers cost 2, 4, 6… up to 10 points each, so do not guess.',
     'Timers: easy ' + TIME.easy + ' s, medium ' + TIME.medium + ' s, hard ' + TIME.hard + ' s. The timer starts when you press Start. You can turn timers off above.',
-    'Use **Maximize** to fill the whole screen with the exercise.'].map(function (t) { return '<li>' + fmt(t) + '</li>'; }).join('') }));
+    'Use **Maximize** to fill the whole screen with the exercise.'].map(function (t) { return '<li>' + fmt(t) + '</li>'; }).join('') });
+  /* first two sessions: the rules in full; after that, one tap away */
+  card.appendChild(uses('starts') >= 2 ? h('details', { class: 'u-notes' }, h('summary', { text: 'How scoring works' }), rules) : rules);
   card.appendChild(h('div', { class: 'note' }, h('b', { text: 'Language notes: ' + LNAME[lang] }), h('ul', { html: (session.notes[lang] || []).map(function (n) { return '<li>' + fmt(n) + '</li>'; }).join('') })));
-  card.appendChild(h('div', { class: 'actions' }, h('button', { class: 'u-btn gold big-btn', type: 'button', text: 'Start practice →', onclick: function () { st().started = true; max = true; render(true); } })));
+  card.appendChild(h('div', { class: 'actions' }, h('button', { class: 'u-btn gold big-btn', type: 'button', text: 'Start practice →', onclick: function () { st().started = true; used('starts'); max = true; render(true); } })));
   box.appendChild(card);
 }
 
@@ -282,12 +337,20 @@ function renderClass(box) {
   if (RETRY.indexOf(e.st) >= 0 && e.left) e.retry = true;
   var interactive = e.st === 'new' || e.retry;
   var total = maxScore();
+  var fresh = lastCheck && lastCheck.id === ex.id ? lastCheck : null;
+  lastCheck = null;
 
   box.appendChild(h('details', { class: 'u-notes' }, h('summary', { text: 'Language notes: ' + LNAME[lang] }), h('ul', { html: (session.notes[lang] || []).map(function (n) { return '<li>' + fmt(n) + '</li>'; }).join('') })));
+  var scoreNum = h('b', { text: String(s.score) });
+  var scoreWrap = h('span', { class: 'u-score' }, h('span', { class: 'u-pill' }, 'Score ', scoreNum, ' / ' + total));
+  var delta = fresh ? s.score - fresh.from : 0;
+  /* the change floats off the pill: gold when earned, red when a guess cost points */
+  if (delta) scoreWrap.appendChild(h('span', { class: 'u-delta ' + (delta > 0 ? 'up' : 'down'), 'aria-hidden': 'true', text: (delta > 0 ? '+' : '−') + Math.abs(delta) }));
   box.appendChild(h('div', { class: 'bar-row' },
-    h('span', { class: 'u-pill', html: 'Score <b>' + s.score + '</b> / ' + total }),
+    scoreWrap,
     h('div', { class: 'prog' }, h('i', { style: 'width:' + Math.round(100 * s.i / EX.length) + '%' })),
     h('span', { class: 'u-step', text: 'Exercise ' + (s.i + 1) + ' of ' + EX.length })));
+  if (fresh) countTo(scoreNum, fresh.from, s.score);
 
   var card = h('div', { class: 'u-card' }), timerEl = h('div', { class: 'timer', text: '' });
   var meta = h('div', { class: 'meta' }, h('span', { class: 'u-badge b-' + ex.diff, text: ex.diff }), h('span', { class: 'u-badge b-type', text: TYPENAME[ex.type] }),
@@ -303,30 +366,64 @@ function renderClass(box) {
 
   if (interactive) {
     if (e.retry) fb.appendChild(h('div', { class: 'fb info', html: '<b class="h">Second chance</b>You can answer again for half points. A wrong answer still costs points.' }));
+    /* Says why Check is greyed out, and how far along the answer is, instead of
+       leaving a disabled button to explain itself. */
+    var readyLine = h('p', { class: 'u-ready', 'aria-live': 'polite' }), wasReady = false;
+    var say_ = function (msg, ok, armBtn) {
+      if (readyLine.textContent !== msg) readyLine.textContent = msg;
+      readyLine.classList.toggle('is-ready', ok);
+      if (ok && !wasReady && armBtn) replay(armBtn, 'is-armed');
+      wasReady = ok;
+    };
     if (ex.type === 'mini') {
-      var ticks = [], ul = h('ul', { class: 'checks' }), done = h('button', { class: 'u-btn', type: 'button', text: 'I finished it', disabled: true, onclick: function () { e.st = 'done'; e.retry = false; render(); } });
-      ex.checklist.forEach(function (c) { var cb = h('input', { type: 'checkbox', onchange: function () { done.disabled = !ticks.every(function (t) { return t.checked; }); } }); ticks.push(cb); ul.appendChild(h('li', null, h('label', null, cb, h('span', { html: fmt(c) })))); });
-      card.appendChild(ul);
+      var ticks = [], ul = h('ul', { class: 'checks' }), done = h('button', { class: 'u-btn', type: 'button', text: 'I finished it', disabled: true, onclick: function () { e.st = 'done'; e.retry = false; lastCheck = { id: ex.id, from: s.score }; render(); } });
+      var tally = function () {
+        var n = ticks.filter(function (t) { return t.checked; }).length;
+        done.disabled = n < ticks.length;
+        say_(n < ticks.length ? n + ' of ' + ticks.length + ' ticked.' + (uses('checks') >= VETERAN ? '' : ' Tick every line your program does.') : 'All ticked. Press I finished it.', n === ticks.length, done);
+      };
+      ex.checklist.forEach(function (c) { var cb = h('input', { type: 'checkbox', onchange: tally }); ticks.push(cb); ul.appendChild(h('li', null, h('label', null, cb, h('span', { html: fmt(c) })))); });
+      card.appendChild(ul); card.appendChild(readyLine); tally();
       var modelBox = h('div'); var showBtn = h('button', { class: 'u-btn ghost', type: 'button', text: 'Show model program', onclick: function () { modelBox.innerHTML = ''; modelBox.appendChild(solution(ex)); showBtn.disabled = true; } });
       actions.appendChild(done); actions.appendChild(showBtn); card.appendChild(modelBox);
     } else {
-      var check = h('button', { class: 'u-btn', type: 'button', text: 'Check', disabled: true, onclick: function () { stopTimer(); award(ex, ui.correct()); render(); } });
-      var chg = function () { check.disabled = !ui.ready(); };
+      var veteran = uses('checks') >= VETERAN, knowsKey = uses('modenter') > 0;
+      var check = h('button', { class: 'u-btn', type: 'button', text: 'Check', disabled: true, onclick: function () { used('checks'); var before = s.score; stopTimer(); award(ex, ui.correct()); lastCheck = { id: ex.id, from: before }; render(); } });
+      var NOUN = { blocks: 'blocks placed', fill: 'blanks filled', trace: 'rows answered', match: 'pairs matched', sort: 'statements sorted' };
+      var chg = function () {
+        var ok = ui.ready(), p = ui.progress(), hint = ui.hint && ui.hint();
+        check.disabled = !ok;
+        say_(ok ? (ex.type === 'write' && !knowsKey ? 'Ready. Press Check, or ' + MOD + ' + Enter.' : 'Ready. Press Check.')
+          : hint ? hint
+          : p[1] > 1 ? p[0] + ' of ' + p[1] + ' ' + NOUN[ex.type] + (veteran ? '.' : '. Check unlocks when all are done.')
+          : veteran ? (ex.type === 'write' ? 'Type your line.' : 'Choose an answer.')
+          : ex.type === 'write' ? 'Type your line to unlock Check.' : 'Choose an answer to unlock Check.', ok, check);
+      };
       var builders = { mcq: bChoice, tf: bChoice, predict: bChoice, debug: bChoice, blocks: bBlocks, fill: bFill, trace: bTrace, match: bMatch, sort: bSort, write: bWrite };
       ui = builders[ex.type](ex, chg);
-      card.appendChild(ui.node); actions.appendChild(check);
+      card.appendChild(ui.node); card.appendChild(readyLine); actions.appendChild(check);
+      chg();
+      /* ⌘/Ctrl + Enter checks from anywhere in the card — the textarea above all */
+      card.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey) && !check.disabled) { ev.preventDefault(); used('modenter', 1); check.click(); }
+      });
     }
-    actions.appendChild(h('button', { class: 'u-btn ghost', type: 'button', text: 'Skip', onclick: function () { stopTimer(); if (e.st === 'new') e.st = 'skipped'; e.retry = false; go(s.i + 1); } }));
+    actions.appendChild(h('button', { class: 'u-btn ghost', type: 'button', text: 'Skip', onclick: function () { stopTimer(); if (e.st === 'new') { e.st = 'skipped'; s.streak = 0; } e.retry = false; go(s.i + 1); } }));
   } else {
-    var msg;
-    if (e.st === 'full') msg = h('div', { class: 'fb ok', html: '<b class="h">Correct! +' + e.pts + ' points</b>' + fmt(ex.explain[lang]) });
-    else if (e.st === 'half') msg = h('div', { class: 'fb ok', html: '<b class="h">Correct on the second try. +' + e.pts + ' points</b>' + fmt(ex.explain[lang]) });
-    else if (e.st === 'done') msg = h('div', { class: 'fb ok', html: '<b class="h">Mini project done. Well done!</b>' + fmt(ex.explain[lang]) });
-    else if (e.st === 'wrong1') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct. −' + (e.lastPen || 0) + ' points</b>Press <b>Try again</b> for half points, or move on.' });
+    var msg, stamp = fresh ? STAMP : '';
+    var streak = fresh && e.st === 'full' && s.streak >= 3 ? ' <span class="u-streak">' + s.streak + ' in a row</span>' : '';
+    if (e.st === 'full') msg = h('div', { class: 'fb ok', html: '<b class="h">' + stamp + 'Correct! +' + e.pts + ' points' + streak + '</b>' + fmt(ex.explain[lang]) });
+    else if (e.st === 'half') msg = h('div', { class: 'fb ok', html: '<b class="h">' + stamp + 'Correct on the second try. +' + e.pts + ' points</b>' + fmt(ex.explain[lang]) });
+    else if (e.st === 'done') msg = h('div', { class: 'fb ok', html: '<b class="h">' + stamp + 'Mini project done. Well done!</b>' + fmt(ex.explain[lang]) });
+    else if (e.st === 'wrong1') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct. ' + lost(e) + '</b>Press <b>Try again</b> for half points, or move on.' });
     else if (e.st === 'timeout') msg = h('div', { class: 'fb no', html: '<b class="h">Time is up.</b>Press <b>Try again</b> for half points, or move on.' });
-    else if (e.st === 'wrong2') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct this time. −' + (e.lastPen || 0) + ' points</b>' + fmt(ex.explain[lang]) });
+    else if (e.st === 'wrong2') msg = h('div', { class: 'fb no', html: '<b class="h">Not correct this time. ' + lost(e) + '</b>' + fmt(ex.explain[lang]) });
     else msg = h('div', { class: 'fb info', html: '<b class="h">Skipped.</b>You can come back later for half points.' });
     fb.appendChild(msg);
+    if (fresh) {
+      msg.classList.add('is-enter');
+      if (e.st === 'wrong1' || e.st === 'wrong2') card.classList.add('is-wrong');
+    }
     if (['wrong1', 'timeout', 'wrong2', 'skipped'].indexOf(e.st) >= 0) actions.appendChild(h('button', { class: 'u-btn gold', type: 'button', text: 'Try again (' + Math.floor(PTS[ex.diff] / 2) + ' pts)', onclick: function () { e.left = true; e.retry = true; render(); } }));
     if (['full', 'half', 'wrong2'].indexOf(e.st) >= 0 || (e.st === 'done' && false)) card.appendChild(solution(ex));
   }
@@ -338,6 +435,12 @@ function renderClass(box) {
   card.appendChild(h('div', { class: 'nav' }, prev, actions, next));
   box.appendChild(card);
   if (interactive && !e.retry && ex.type !== 'mini') startTimer(ex, e, timerEl);
+  /* The Check button is gone after a check; focus moves to the verdict that
+     replaced it, so a keyboard or screen-reader user hears the result. */
+  if (fresh && msg) {
+    msg.setAttribute('tabindex', '-1');
+    try { msg.focus({ preventScroll: true }); } catch (err) { msg.focus(); }
+  }
 }
 
 function renderFinal(box) {
@@ -352,7 +455,9 @@ function renderFinal(box) {
   var card = h('div', { class: 'u-card final' });
   card.appendChild(h('div', { class: 'u-eyebrow', text: 'SESSION ' + session.number + ' · RESULT · ' + LNAME[lang].toUpperCase() }));
   card.appendChild(h('h2', { text: pct >= 85 ? 'Excellent work!' : pct >= 65 ? 'Good job!' : pct >= 40 ? 'A good start. Keep practising.' : 'Practise a bit more, then try again.' }));
-  card.appendChild(h('div', { class: 'big', html: s.score + ' <small>/ ' + total + ' · ' + pct + '%</small>' }));
+  var bigNum = h('span', { text: String(s.score) });
+  card.appendChild(h('div', { class: 'big' }, bigNum, ' ', h('small', { text: '/ ' + total + ' · ' + pct + '%' })));
+  if (justDone) { justDone = false; countTo(bigNum, 0, s.score); }
   card.appendChild(h('div', { class: 'lab', text: 'Topics (earned points)' }));
   var weak = [];
   Object.keys(topics).forEach(function (k) {
@@ -372,7 +477,11 @@ function renderFinal(box) {
 /* ---------- self practice ---------- */
 function renderPractice(box) {
   var done = PD[lang] || (PD[lang] = {}), counter = h('span', { class: 'u-pill' });
-  function upd() { var n = Object.keys(done).filter(function (k) { return done[k]; }).length; counter.innerHTML = 'Done <b>' + n + '</b> / ' + PR.length; }
+  function upd(bump) {
+    var n = Object.keys(done).filter(function (k) { return done[k]; }).length;
+    counter.innerHTML = 'Done <b>' + n + '</b> / ' + PR.length;
+    if (bump) replay(counter, 'is-bump');
+  }
   box.appendChild(h('div', { class: 'note', html: '<b>How to use this page.</b> Try each exercise alone first. Then press <b>Show answer</b> and compare. Tick <b>Done</b> when you understand it. Language: <b>' + LNAME[lang] + '</b> (change it at the top).' }));
   box.appendChild(h('div', { class: 'bar-row' }, counter));
   upd();
@@ -385,8 +494,8 @@ function renderPractice(box) {
       if (p.kind === 'predict') ans.appendChild(h('pre', { class: 'ucode', text: p.answer[lang] })); else ans.appendChild(codeBlock(p.answer[lang]));
       ans.appendChild(h('p', { html: fmt(p.explain[lang]) }));
       var card = h('div', { class: 'pcard' });
-      var cb = h('input', { type: 'checkbox', onchange: function () { done[p.id] = cb.checked; upd(); } }); cb.checked = !!done[p.id];
-      var btn = h('button', { class: 'u-btn sm ghost', type: 'button', text: 'Show answer', onclick: function () { card.classList.toggle('open'); btn.textContent = card.classList.contains('open') ? 'Hide answer' : 'Show answer'; } });
+      var cb = h('input', { type: 'checkbox', onchange: function () { done[p.id] = cb.checked; upd(true); } }); cb.checked = !!done[p.id];
+      var btn = h('button', { class: 'u-btn sm ghost', type: 'button', text: 'Show answer', 'aria-expanded': 'false', onclick: function () { var open = card.classList.toggle('open'); btn.textContent = open ? 'Hide answer' : 'Show answer'; btn.setAttribute('aria-expanded', String(open)); } });
       card.appendChild(h('div', { class: 'meta' }, h('span', { class: 'u-badge b-' + p.level, text: p.level }), h('span', { class: 'u-badge b-type', text: TYPENAME[p.kind] || p.kind }), h('span', { class: 'u-step', text: p.id.toUpperCase().replace('S', 'Practice ') })));
       card.appendChild(h('h4', { text: p.title }));
       card.appendChild(h('p', { class: 'prompt', html: fmt(p.prompt) }));
@@ -411,7 +520,17 @@ function render(scroll) {
   document.documentElement.classList.toggle('u-lock', max);
   root.innerHTML = '';
   var lg = h('div', { class: 'lang', role: 'group', 'aria-label': 'Language' });
-  LANGS.forEach(function (l) { lg.appendChild(h('button', { type: 'button', class: lang === l[0] ? 'on' : '', text: l[1], onclick: function () { if (lang === l[0]) return; lang = l[0]; try { localStorage.setItem(LANG_KEY, lang); } catch (e) {} render(); } })); });
+  LANGS.forEach(function (l) { lg.appendChild(h('button', { type: 'button', class: lang === l[0] ? 'on' : '', 'aria-pressed': String(lang === l[0]), text: l[1], onclick: function () {
+    if (lang === l[0]) return;
+    var was = lang, wasStarted = S[was] && S[was].started;
+    lang = l[0]; try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+    render();
+    /* Each language keeps its own score: a hidden mode unless it is said out loud.
+       Said only once there is progress that would otherwise seem to vanish. */
+    if (mode === 'class' && (wasStarted || (S[lang] && S[lang].started))) {
+      toast('Now in ' + LNAME[lang] + '. Each language keeps its own score, so your ' + LNAME[was] + ' progress is saved as you left it.');
+    } else say('Language: ' + LNAME[lang]);
+  } })); });
   var tg = h('label', { class: 'tog' }); var cb2 = h('input', { type: 'checkbox', onchange: function () { timersOn = cb2.checked; render(); } }); cb2.checked = timersOn; tg.appendChild(cb2); tg.appendChild(document.createTextNode(' Timers'));
   root.appendChild(h('div', { class: 'u-toolbar' },
     h('div', { class: 'tabs' },

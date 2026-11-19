@@ -81,7 +81,11 @@
     codeBlock: codeBlock,
     langSelector: langSelector,
     langLabel: langLabel,
-    currentLang: currentLang
+    currentLang: currentLang,
+    notify: notify,
+    announce: announce,
+    replay: replay,
+    tipDue: tipDue
   };
 
   function field(label, body) {
@@ -969,7 +973,8 @@
         '<label class="eyebrow" for="search-q">Courses, modules, objectives and exercises</label>' +
         '<input class="search-input" id="search-q" type="search" autocomplete="off" ' +
           'spellcheck="false" enterkeyhint="search" value="' + esc(q) + '">' +
-        '<p class="search-hint">Results update as you type. Press <kbd>/</kbd> on any page to come back here.</p>' +
+        '<p class="search-hint">Results update as you type.' +
+          (knowsSlash() ? '' : ' Press <kbd>/</kbd> on any page to come back here.') + '</p>' +
       '</form>' +
       '<p class="search-status" id="search-status" role="status">' + esc(searchStatus(q, hits.length)) + '</p>' +
       '<div id="search-list">' + searchList(q, hits) + '</div>';
@@ -1044,7 +1049,14 @@
     /* Enter opens the best match */
     var first = document.querySelector('#search-list .search-results a');
     if (first) location.hash = first.getAttribute('href');
+    /* nothing to open: the field shakes once, and the status line says why */
+    else if (currentQuery().trim()) replay(document.getElementById('search-q'), 'is-nudge');
   });
+
+  /* The "/" hint is retired for good once the shortcut has been used. */
+  function knowsSlash() {
+    try { return localStorage.getItem('teach.tip.slash.used') === '1'; } catch (e) { return false; }
+  }
 
   /* "/" from anywhere opens search — a convention from GitHub, YouTube and Slack. */
   document.addEventListener('keydown', function (e) {
@@ -1052,6 +1064,7 @@
     var t = e.target;
     if (t && t.closest && t.closest('input, textarea, select, [contenteditable]')) return;
     e.preventDefault();
+    try { localStorage.setItem('teach.tip.slash.used', '1'); } catch (err) { /* ignore */ }
     var input = document.getElementById('search-q');
     if (input) input.focus();
     else location.hash = '#/search';
@@ -1244,7 +1257,10 @@
     for (i = 0; i < examples.length; i++) {
       var obj = mod.objectives[Number(examples[i].getAttribute('data-obj'))];
       var snippet = obj && obj.example && obj.example[lang];
-      if (snippet) examples[i].innerHTML = codeBlock(snippet, langLabel(lang) + ' example');
+      if (snippet) {
+        examples[i].innerHTML = codeBlock(snippet, langLabel(lang) + ' example');
+        replay(examples[i], 'is-swapped');
+      }
     }
 
     var cards = document.querySelectorAll('.card[data-obj]');
@@ -1252,7 +1268,15 @@
       var owner = mod.objectives[Number(cards[i].getAttribute('data-obj'))];
       var ex = owner && owner.exercises[Number(cards[i].getAttribute('data-ex'))];
       var area = cards[i].querySelector('.lang-area');
-      if (ex && area) area.innerHTML = langAreaInner(ex, lang);
+      if (ex && area) { area.innerHTML = langAreaInner(ex, lang); replay(area, 'is-swapped'); }
+    }
+
+    /* One selector changes every card, most of them off screen. That rule is said
+       out loud the first two times, then trusted to be known. */
+    if (cards.length > 1 && tipDue('lang', 2)) {
+      notify('Every exercise on this page now shows ' + langLabel(lang) + '. Your choice is remembered.');
+    } else {
+      announce('Showing ' + langLabel(lang));
     }
   }
 
@@ -1300,6 +1324,10 @@
     }
 
     if (btn.hasAttribute('data-reload')) {
+      /* the reload can take a moment on a bad connection: say it started */
+      btn.textContent = 'Reloading…';
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
       location.reload();
       return;
     }
@@ -1310,8 +1338,12 @@
     }
   });
 
-  /* The button's own label carries the result, and role="status" on it is not
-     allowed, so a shared polite live region announces it to screen readers. */
+  /* ---------- feedback channels ----------
+     Two of them, and the smallest one that works wins (README, "Microinteractions"):
+       announce()  screen readers only — for feedback already visible where the
+                   action happened, such as a button's own label;
+       notify()    the visible toast — only for a change the visitor may not be
+                   looking at, or a rule they could not otherwise see. */
   var announcer = null;
 
   function announce(msg) {
@@ -1325,15 +1357,104 @@
     setTimeout(function () { announcer.textContent = msg; }, 50);
   }
 
+  /* Re-runs a one-shot CSS animation class on an element that may already carry it. */
+  function replay(el, cls) {
+    if (!el || !el.classList) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+
+  /* One toast at a time: a new one replaces the old rather than stacking. It stays
+     4 s (7 s with an action), holds while hovered or focused, and Esc closes it. */
+  var toastRegion = null, toastTimer = null, toastDismiss = null;
+
+  function notify(msg, opts) {
+    opts = opts || {};
+    if (!toastRegion) {
+      toastRegion = document.createElement('div');
+      toastRegion.className = 'toast-region';
+      toastRegion.setAttribute('role', 'status');
+      document.body.appendChild(toastRegion);
+    }
+    if (toastDismiss) toastDismiss(true);
+
+    var toast = document.createElement('div');
+    toast.className = 'toast' + (opts.tone ? ' is-' + opts.tone : '');
+    var text = document.createElement('span');
+    text.className = 'toast-text';
+    text.textContent = msg;
+    toast.appendChild(text);
+
+    function dismiss(now) {
+      clearTimeout(toastTimer);
+      if (toastDismiss === dismiss) toastDismiss = null;
+      if (!toast.parentNode) return;
+      if (now) { toast.parentNode.removeChild(toast); return; }
+      toast.classList.add('is-leaving');
+      setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 200);
+    }
+
+    if (opts.action) {
+      var act = document.createElement('button');
+      act.type = 'button';
+      act.className = 'toast-action';
+      act.textContent = opts.action.label;
+      act.addEventListener('click', function () { dismiss(); opts.action.run(); });
+      toast.appendChild(act);
+    }
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'toast-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '×';
+    close.addEventListener('click', function () { dismiss(); });
+    toast.appendChild(close);
+
+    var ms = opts.ms || (opts.action ? 7000 : 4000);
+    function arm() { clearTimeout(toastTimer); toastTimer = setTimeout(dismiss, ms); }
+    function hold() { clearTimeout(toastTimer); }
+    toast.addEventListener('mouseenter', hold);
+    toast.addEventListener('mouseleave', arm);
+    toast.addEventListener('focusin', hold);
+    toast.addEventListener('focusout', arm);
+
+    toastRegion.appendChild(toast);
+    toastDismiss = dismiss;
+    arm();
+    return dismiss;
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && toastDismiss) toastDismiss();
+  });
+
+  /* A hint that retires itself: shown until it has been seen `limit` times. */
+  function tipDue(key, limit) {
+    var n = 0;
+    try { n = Number(localStorage.getItem('teach.tip.' + key)) || 0; } catch (e) { return true; }
+    if (n >= limit) return false;
+    try { localStorage.setItem('teach.tip.' + key, String(n + 1)); } catch (e) { /* ignore */ }
+    return true;
+  }
+
   function copyText(text, btn) {
-    var flash = function (label, msg, ms) {
+    var flash = function (label, msg, ms, state) {
       if (!btn.hasAttribute('data-label')) btn.setAttribute('data-label', btn.textContent);
       btn.textContent = label;
+      btn.classList.remove('is-done', 'is-failed');
+      replay(btn, state);
       announce(msg);
       clearTimeout(btn._t);
-      btn._t = setTimeout(function () { btn.textContent = btn.getAttribute('data-label'); }, ms);
+      btn._t = setTimeout(function () {
+        btn.textContent = btn.getAttribute('data-label');
+        btn.classList.remove(state);
+      }, ms);
     };
-    var done = function () { flash('Copied', 'Code copied to the clipboard', 1200); };
+    var done = function () {
+      flash('Copied', 'Code copied to the clipboard', 1600, 'is-done');
+      replay(btn.parentElement.nextElementSibling, 'is-copied');
+    };
     /* Never fail silently: select the code so one keystroke finishes the job. */
     var failed = function () {
       var pre = btn.parentElement.nextElementSibling;
@@ -1345,7 +1466,7 @@
         sel.addRange(range);
       }
       var keys = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘C' : 'Ctrl+C';
-      flash('Press ' + keys, 'Copy failed. The code is selected, press ' + keys + ' to copy it', 3000);
+      flash('Press ' + keys, 'Copy failed. The code is selected, press ' + keys + ' to copy it', 3000, 'is-failed');
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () { fallback(text, done, failed); });

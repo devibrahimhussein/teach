@@ -326,6 +326,95 @@ render as inline `code`, as everywhere else in the content.
 - Sample output is complete: students print those lines and nothing else, with no prompts.
 - Every objective reuses one concept across its three exercises, varying the scenario.
 
+## Microinteractions
+
+Every small moment follows Dan Saffer's model: a **trigger** starts it, **rules** decide
+what happens, **feedback** shows it, and **loops** decide how it changes over time. Two
+rules hold everywhere:
+
+- **Smallest feedback that works.** Change the control that was touched first. Use a toast
+  only for a change the visitor may not be looking at, or a rule they could not otherwise
+  see. Each piece of feedback plays once, on the change itself, and never again when the
+  same view is redrawn (`justPicked`, `lastCheck`, `justDone` are one-render flags).
+- **Motion is never the only channel.** Every animation is one-shot and decorative. The end
+  state (colour, text, a tick) carries the meaning, so `prefers-reduced-motion` loses
+  nothing. Anything that is only visual is also spoken through `UI.announce`.
+
+Styles: the "Microinteractions" block at the end of `css/styles.css`, and the matching
+block at the end of `css/university.css`. Code: `notify`, `announce`, `replay` and
+`tipDue` in `js/app.js`, published on `window.UI`.
+
+### Button states
+
+| State | Look | Where |
+| --- | --- | --- |
+| hover | lift or gold fill (already in place) | every button and card link |
+| pressed | `scale(.92–.99)` for 60 ms, so a tap registers before the result paints | `.btn`, cards, header icons, copy, language, quiz and University controls |
+| disabled | 40% opacity, `not-allowed` cursor, no lift | `.btn[disabled]`, `.u-btn:disabled` |
+| busy | text says what is happening, `aria-busy`, a spinner after the label | "Try again" on a failed load becomes "Reloading…" |
+| success / failure | the button itself turns green with a ✓, or red, and pops once | Copy: "✓ Copied" for 1.6 s and a gold ring on the code it copied. A failure reads "Press ⌘C" with the code selected, for 3 s |
+
+No spinner is shown on the search debounce (120 ms). One would only flicker.
+
+### Signature moment: the closing tag
+
+The key action on the site is getting an exercise right, so that is where the brand mark
+lives. When **Check** in a University session is correct, the site's `</>` mark closes
+itself: the brackets slide in from either side and the slash drops between them, in gold.
+At the same time the score pill counts up and a `+10` floats off it. Three first-try
+answers in a row add a "3 in a row" badge. The stamp plays only on the check itself, not
+when the exercise is revisited, and it never blocks the next step. A wrong answer gets a
+short shake, a red `−4` and no stamp. Finishing a session or the level test counts the
+final score up from zero.
+
+### Form inputs: audit and fixes
+
+| Input | Was missing | Now |
+| --- | --- | --- |
+| University **Check** (all types) | greyed out with no reason | a line under the answer says why and how far along: "3 of 5 blocks placed. Check unlocks when all are done." It turns green ("✓ Ready. Press Check.") and the button pops once when it unlocks |
+| Write-the-code textarea | no keyboard submit, no label | ⌘/Ctrl + Enter checks from anywhere in the card; it has an `aria-label` |
+| Trace and match selects | a filled row looked like an empty one; no labels | filled selects turn gold; each has an `aria-label` |
+| Fill the blanks | which blank fills next was unclear | the next blank is ringed; a placed chip lands with a small drop |
+| Blocks, sort | placing gave no confirmation | the placed chip lands; a full answer area turns solid; an armed box gently pulses; "Now tap the box this statement belongs in." |
+| Mini-project checklist | no count | "2 of 4 ticked." |
+| After Check | focus fell to `<body>` | focus moves to the verdict, so a keyboard or screen-reader user hears it |
+| Self-practice | "Show answer" had no expanded state; the counter changed silently | `aria-expanded`; the answer slides in; the Done counter bumps |
+| Search, Enter with no results | nothing happened | the field shakes once, red; the status line already says "No results" |
+| Level test options | the pick changed colour only | the picked option and its letter pop; "N answered" bumps; the progress bar slides from where it was |
+
+### Notifications: trigger, rules, feedback, loops
+
+| Notification | Trigger | Rules | Feedback | Loop |
+| --- | --- | --- | --- | --- |
+| Code copied | Copy pressed | clipboard API, then `execCommand` fallback | button label + ring on the code; spoken | none |
+| Copy failed | both copy paths fail | select the code instead of failing silently | red label "Press ⌘C", 3 s; spoken | none |
+| Language switched (module page) | C++ / Java on any card | changes every card, most of them off screen | swapped regions fade in; **toast** the first 2 times ("Every exercise on this page now shows Java…") | long loop: after 2 toasts only spoken (`teach.tip.lang`) |
+| Language switched (University) | C / C++ / Java / Python | each language keeps its own score: a hidden mode | **toast** naming the rule, only when there is progress that would seem to vanish | every time; the mode needs to stay visible |
+| Test restarted | "Start over" / "Take the test again" | old attempt kept until the first new answer | inline notice with **Undo** (already in place) | closes on the first answer |
+| Answers lost to a language switch | switch mid-test | syntax questions need a new answer | inline notice above the question (already in place) | until answered |
+| Keyboard shortcuts in the test | first questions on a desktop | A–D answers, ← → moves | inline tip under the options | long loop: 3 visits, or gone for good after one shortcut is used (`teach.tip.quizkeys*`) |
+| Timer low / time up | 10 s left / 0 s | a system trigger, not a user one | red pulse (visual); "10 seconds left" / "Time is up" spoken once | none |
+| Route loading / failed | a deferred file in flight / it failed | only the newest navigation paints | inline loading bar with `role=status`; inline error with Try again | none |
+
+### Long loops: hints that retire
+
+| Hint | Shown to a newcomer | Retires when | Key |
+| --- | --- | --- | --- |
+| Language toast (module page) | the first 2 switches | after 2, only spoken | `teach.tip.lang` |
+| Level-test shortcuts tip | 3 visits, desktop only | a shortcut is used once | `teach.tip.quizkeys*` |
+| "Press / on any page" (search) | always | `/` is used once | `teach.tip.slash.used` |
+| University scoring rules | in full on the start card | after 2 sessions started, folded into "How scoring works" | `teach.uni.uses.starts` |
+| "Check unlocks when all are done" | on every exercise | after 5 checks, the count alone ("3 of 5 blocks placed.") | `teach.uni.uses.checks` |
+| "or ⌘ + Enter" | on a ready textarea | ⌘/Ctrl + Enter is used once | `teach.uni.uses.modenter` |
+
+Nothing that changes the score or a rule is ever retired: the University language toast,
+the timer warnings and the restart Undo stay on for good.
+
+Toast rules (`UI.notify`): one at a time (a new one replaces the old), bottom centre and
+clear of the WhatsApp button, 4 s or 7 s with an action. It holds while hovered or
+focused, Esc or × closes it, and it sits in a polite live region. Add one only when the
+change happens out of sight. Otherwise animate the control that was touched.
+
 ## Checking content
 
 The data files are ordinary JavaScript, so they can be loaded and validated outside the

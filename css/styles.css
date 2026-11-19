@@ -1565,3 +1565,159 @@ details.quiz-review[open] summary { margin-bottom: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .is-target { animation: none; box-shadow: 0 0 0 4px var(--gold); }
 }
+
+/* ==========================================================================
+   Microinteractions
+   Trigger → rules → feedback → loops, per control. The full spec, and why each
+   piece of feedback is the size it is, lives in README.md ("Microinteractions").
+   Every animation here is one-shot and decorative: the end state carries the
+   meaning on its own, so the reduced-motion rule above loses nothing.
+   ========================================================================== */
+
+:root {
+  --ease-out: cubic-bezier(.2, .7, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --ok-on-navy: #7fcf9f;
+  --bad-on-navy: #f0a3a3;
+}
+
+/* ---------- press: every control answers the pointer within a frame ---------- */
+
+.btn:active, .pager a:active { transform: translateY(0) scale(.97); transition-duration: .06s; }
+.btn-primary:active { box-shadow: 0 3px 10px -6px rgba(22, 33, 63, .8); }
+.course-card:active, a.module-row:active, .quiz-cta:active, .search-results a:active {
+  transform: translateY(0) scale(.99); transition-duration: .06s;
+}
+.header-search, .copy-btn, .langsel button, .hero-pause, .header-book {
+  transition: color .14s, border-color .14s, background .14s, transform .1s ease;
+}
+.header-search:active, .copy-btn:active, .langsel button:active,
+.hero-pause:active, .header-book:active, .hero-dot:active .hero-dot-pill { transform: scale(.92); }
+.hero-arrow { transition: background .15s, color .15s, border-color .15s, transform .1s ease; }
+.hero-arrow:active { transform: translateY(-50%) scale(.92); }
+.quiz-opt:active { transform: translateX(2px) scale(.99); transition-duration: .06s; }
+.wa-fab:active { transform: scale(.95); transition-duration: .06s; }
+.nav-obj:active, .nav-ex:active { background: var(--gold-wash); transform: translateX(2px); }
+
+/* ---------- disabled and busy: one look everywhere ---------- */
+
+.btn[disabled], .btn[aria-disabled="true"] {
+  opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; pointer-events: none;
+}
+/* the work has started and cannot be pressed again */
+[aria-busy="true"] { cursor: progress; }
+button[aria-busy="true"]::after {
+  content: ""; display: inline-block; vertical-align: -2px;
+  width: .9em; height: .9em; margin-left: .5em;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: mi-spin .7s linear infinite;
+}
+@keyframes mi-spin { to { transform: rotate(360deg); } }
+
+/* ---------- copy: the button says it, the code block shows what was copied ---------- */
+
+.copy-btn { min-width: 74px; text-align: center; }
+.copy-btn.is-done { color: var(--ok); border-color: var(--ok); background: var(--ok-wash); }
+.copy-btn.is-done::before { content: "✓ "; }
+.copy-btn.is-failed { color: var(--bad); border-color: var(--bad); background: var(--bad-wash); }
+.copy-btn.is-done, .copy-btn.is-failed { animation: mi-pop .32s var(--ease-spring); }
+pre.code.is-copied { animation: mi-copied .7s ease-out; }
+@keyframes mi-copied {
+  0%   { box-shadow: 0 0 0 0 rgba(199, 160, 46, .0); }
+  25%  { box-shadow: 0 0 0 3px rgba(199, 160, 46, .75); }
+  100% { box-shadow: 0 0 0 3px rgba(199, 160, 46, 0); }
+}
+
+@keyframes mi-pop {
+  0%   { transform: scale(.9); }
+  60%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- language switch: the regions that changed say so ---------- */
+
+.is-swapped { animation: mi-swap .32s var(--ease-out); }
+@keyframes mi-swap {
+  from { opacity: .35; transform: translateY(3px); }
+  to   { opacity: 1;   transform: none; }
+}
+
+/* ---------- disclosures open with a short reveal, not a jump ---------- */
+
+details[open] > :not(summary) { animation: mi-reveal .22s var(--ease-out); }
+@keyframes mi-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- search ---------- */
+
+/* Enter with nothing to open: one small shake, the status line says why */
+.search-input.is-nudge { animation: mi-nudge .36s ease; border-color: var(--bad); }
+@keyframes mi-nudge {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+/* ---------- level test ---------- */
+
+.quiz-opt.is-just-picked { animation: mi-pick .3s var(--ease-spring); }
+.quiz-opt.is-just-picked .quiz-key { animation: mi-pop .3s var(--ease-spring); }
+@keyframes mi-pick {
+  0%   { transform: scale(.985); }
+  60%  { transform: scale(1.01); }
+  100% { transform: none; }
+}
+.quiz-answered.is-bump { display: inline-block; color: var(--gold-deep); animation: mi-pop .3s var(--ease-spring); }
+.quiz-bar > span { transition: width .35s var(--ease-out); }
+
+.quiz-tip { margin: 16px 0 0; font-size: 13px; color: var(--text-faint); }
+.quiz-tip kbd {
+  font-family: var(--mono); font-size: 12px; padding: 1px 6px;
+  border: 1px solid var(--border-firm); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); color: var(--text);
+}
+
+/* ---------- toast ----------
+   Bottom centre, clear of the WhatsApp button; above the University full screen. */
+
+.toast-region {
+  position: fixed; left: 50%; bottom: 22px; z-index: 100001;
+  transform: translateX(-50%);
+  width: max-content; max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 8px 10px 16px;
+  background: var(--navy); color: var(--on-navy);
+  border-left: 4px solid var(--gold); border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  font-size: 14.5px; line-height: 1.4;
+  animation: toast-in .26s var(--ease-out);
+}
+.toast.is-ok  { border-left-color: var(--ok-on-navy); }
+.toast.is-bad { border-left-color: var(--bad-on-navy); }
+.toast.is-leaving { animation: toast-out .2s ease-in forwards; }
+.toast-text { min-width: 0; }
+.toast-action {
+  flex: none; font: inherit; font-weight: 800; color: var(--gold);
+  background: none; border: 0; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+}
+.toast-action:hover { background: var(--navy-soft); }
+.toast-close {
+  flex: none; width: 36px; height: 36px; border-radius: 50%;
+  font: inherit; font-size: 20px; line-height: 1;
+  color: var(--on-navy-dim); background: none; border: 0; cursor: pointer;
+}
+.toast-close:hover { color: var(--on-navy); background: var(--navy-soft); }
+.toast :focus-visible { outline-color: var(--gold); }
+@keyframes toast-in  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 620px) {
+  .toast-region { bottom: 80px; }   /* above the 52px WhatsApp button */
+}

@@ -20,6 +20,12 @@ window.QuizUI = (function () {
   var state = null;          /* { course, phase, index, answers } */
   var undone = null;         /* the attempt a restart just cleared, until a new answer is given */
 
+  /* One-render flags for feedback that must play once, on the change itself —
+     not again every time the same question is redrawn. */
+  var justPicked = -1;       /* option just chosen: it pops, the count bumps */
+  var justFinished = false;  /* the score counts up on arrival only */
+  var keyTip = null;         /* show the keyboard tip on this visit? decided once */
+
   /* ---------- state ---------- */
 
   function blank(courseId) {
@@ -204,9 +210,13 @@ window.QuizUI = (function () {
     var last = i === all.length - 1;
     var pending = pendingCount(courseId, lang);
 
+    var fresh = justPicked;
+    justPicked = -1;
+
     var opts = options(q, lang).map(function (text, oi) {
       var on = given === oi;
-      return '<button type="button" class="quiz-opt' + (on ? ' is-picked' : '') + '" ' +
+      return '<button type="button" class="quiz-opt' + (on ? ' is-picked' : '') +
+          (on && fresh === oi ? ' is-just-picked' : '') + '" ' +
         'data-quiz="pick" data-i="' + oi + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
         '<span class="quiz-key">' + LETTERS[oi] + '</span>' +
         '<span class="quiz-opt-text">' + UI.fmt(text) + '</span>' +
@@ -219,7 +229,8 @@ window.QuizUI = (function () {
       '<div class="quiz-head">' +
         '<div class="quiz-head-meta">' +
           '<span class="eyebrow">Question ' + (i + 1) + ' of ' + all.length + '</span>' +
-          '<span class="quiz-answered">' + answeredCount(courseId, lang) + ' answered</span>' +
+          '<span class="quiz-answered' + (fresh > -1 ? ' is-bump' : '') + '">' +
+            answeredCount(courseId, lang) + ' answered</span>' +
         '</div>' +
         UI.langSelector(lang) +
       '</div>' +
@@ -241,6 +252,7 @@ window.QuizUI = (function () {
         '<p class="quiz-ask">' + UI.fmt(pick(q.ask, lang)) + '</p>' +
         (code ? snippet(code) : '') +
         '<div class="quiz-options">' + opts + '</div>' +
+        keyboardTip() +
       '</article>' +
 
       '<nav class="quiz-actions">' +
@@ -253,6 +265,42 @@ window.QuizUI = (function () {
 
       unansweredNote(courseId, lang, last) +
       '</div>';
+  }
+
+  /* The shortcuts are invisible triggers, so they get a visible hint — but only on
+     machines with a keyboard and a mouse, and only for a student's first few visits.
+     Pressing a shortcut once retires it for good. */
+  function keyboardTip() {
+    if (keyTip === null) {
+      var desk = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      var learned = false;
+      try { learned = localStorage.getItem('teach.tip.quizkeys.used') === '1'; } catch (e) { /* ignore */ }
+      keyTip = desk && !learned && UI.tipDue('quizkeys', 3);
+    }
+    if (!keyTip) return '';
+    return '<p class="quiz-tip">Tip: press <kbd>A</kbd>–<kbd>D</kbd> to answer, ' +
+      '<kbd>←</kbd> <kbd>→</kbd> to move between questions.</p>';
+  }
+
+  function learnedKeys() {
+    keyTip = false;
+    try { localStorage.setItem('teach.tip.quizkeys.used', '1'); } catch (e) { /* ignore */ }
+  }
+
+  /* Counts a number up from 0 on arrival. Under reduced motion it simply appears. */
+  function countUp(el, to, suffix) {
+    if (!el) return;
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || !window.requestAnimationFrame || to <= 0) return;
+    var start = null, dur = Math.min(900, 300 + to * 25);
+    el.textContent = '0' + (suffix || '');
+    window.requestAnimationFrame(function frame(t) {
+      if (start === null) start = t;
+      var k = Math.min(1, (t - start) / dur);
+      var eased = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(to * eased) + (suffix || '');
+      if (k < 1) window.requestAnimationFrame(frame);
+    });
   }
 
   /* Index of the first question with no answer in this language, or -1. */
@@ -361,9 +409,9 @@ window.QuizUI = (function () {
     return '<div class="quiz-result">' +
 
       '<div class="score-head">' +
-        '<div class="score-big"><strong>' + correct + '</strong><span>/ ' + total + '</span></div>' +
+        '<div class="score-big"><strong data-count="' + correct + '">' + correct + '</strong><span>/ ' + total + '</span></div>' +
         '<div class="score-side">' +
-          '<div class="score-pct">' + pct + '%</div>' +
+          '<div class="score-pct" data-count="' + pct + '" data-suffix="%">' + pct + '%</div>' +
           '<p>You know <strong>' + known.length + '</strong> of ' + rows.length +
             ' objectives. An objective counts as known when at least two of its three ' +
             'questions are correct.</p>' +
@@ -445,8 +493,26 @@ window.QuizUI = (function () {
     var had = root.contains(document.activeElement) ? focusKey(document.activeElement) : null;
     var wasInside = root.contains(document.activeElement);
 
+    /* the progress bar moves from where it was, rather than snapping */
+    var oldBar = root.querySelector('.quiz-run .quiz-bar');
+    var from = oldBar ? oldBar.getAttribute('data-pct') : null;
+
     root.innerHTML = body(state.course, UI.currentLang());
     paintBars(root);
+    var bar = root.querySelector('.quiz-run .quiz-bar');
+    if (bar && from !== null && bar.firstChild && from !== bar.getAttribute('data-pct')) {
+      bar.firstChild.style.width = from + '%';
+      void bar.offsetWidth;
+      bar.firstChild.style.width = bar.getAttribute('data-pct') + '%';
+    }
+
+    if (justFinished) {
+      justFinished = false;
+      var counts = root.querySelectorAll('.score-head [data-count]');
+      for (var c = 0; c < counts.length; c++) {
+        countUp(counts[c], Number(counts[c].getAttribute('data-count')), counts[c].getAttribute('data-suffix'));
+      }
+    }
     if (scroll) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     if (!wasInside) return;
@@ -504,8 +570,9 @@ window.QuizUI = (function () {
       var entry = Quiz.questions(state.course)[state.index];
       if (entry) {
         undone = null;
+        justPicked = Number(btn.getAttribute('data-i'));
         /* the language is stored with the pick: option 3 in C++ is not option 3 in Java */
-        state.answers[entry.qid] = { i: Number(btn.getAttribute('data-i')), lang: UI.currentLang() };
+        state.answers[entry.qid] = { i: justPicked, lang: UI.currentLang() };
         save();
         refresh(false);
       }
@@ -522,6 +589,7 @@ window.QuizUI = (function () {
     if (action === 'prev') { step(-1); return true; }
 
     if (action === 'finish') {
+      justFinished = true;
       state.phase = 'result';
       save();
       refresh(false);
@@ -561,13 +629,17 @@ window.QuizUI = (function () {
 
     if (index > -1 && index < count) {
       undone = null;
+      justPicked = index;
+      learnedKeys();
       state.answers[entry.qid] = { i: index, lang: lang };
       save();
       refresh(false);
       e.preventDefault();
     } else if (e.key === 'ArrowRight') {
+      learnedKeys();
       step(1);
     } else if (e.key === 'ArrowLeft') {
+      learnedKeys();
       step(-1);
     }
   });
